@@ -1,75 +1,95 @@
-# Project: Prey Veng Khmer Dialect Archive
+# Project: The Khmer Living Archive — Desserts Edition
 
 ## Goal
-A community archive digitally preserving disappearing dialect vocabulary
-and phrases from Prey Veng Khmer — words and sayings passed down
-through the founder's grandparents and parents that don't exist, or mean
-something different, in standard Khmer. Built for ICT 340 capstone.
-Deployed to Vercel via Next.js.
+A community archive digitally preserving traditional Khmer desserts (នំ /
+*nom*) as made and remembered by the founder's grandparents in
+[PROVINCE — fill in]. Entries mix desserts they still actively make
+(photographed) and desserts they remember from earlier in life but no
+longer make (description only, sometimes no photo). Capstone project for
+a "Vibe Coding with AI" course. Deployed to Vercel via Next.js.
 
-This is a language-preservation archive. It is NOT a general Khmer
-dictionary, NOT a translation tool, NOT a social platform, NOT a blog.
+This is a food-and-memory preservation archive. It is NOT a recipe site,
+NOT a general Khmer cookbook, NOT a social platform, NOT a blog.
+
+> Note: this project began as a Prey Veng dialect-vocabulary archive. It
+> was re-scoped to desserts. The four-feature skeleton, the security
+> rules and the sourcing rules carried over unchanged; only the subject
+> matter and the entry fields differ.
 
 ## The skeleton — this IS the whole scope
 Nothing outside these four features is in scope, ever, unless told
 explicitly that the professor approved a stretch feature by name.
 
 1. **Browse & search** (Sprint 1) — public, no login needed. Anyone can
-   browse and search dialect entries.
-2. **Contributor accounts** (Sprint 2) — sign up / log in to submit
-   entries (text + at least 1 photo per entry — e.g. a photo tied to
-   the word's context, or of the person who taught it).
+   browse and search published dessert entries, and open a detail page.
+2. **Contributor accounts** (Sprint 2) — sign up / log in (Supabase Auth,
+   email + password) to submit entries (text + at least one photo
+   upload), plus a "my entries" view.
 3. **Ownership** (Sprint 2) — contributors edit/delete ONLY their own
-   entries. No admin panel, no cross-user editing, unless specified.
-4. **Review workflow** (Sprint 3) — submitted entries are hidden from
-   the public until reviewed and published.
+   entries, enforced with RLS. No admin panel, no cross-user editing.
+4. **Review workflow** (Sprint 3) — entries are created `pending` and
+   hidden from the public until a reviewer publishes them. Contributors
+   can see the status of their own submissions.
 
 ## Hard rule: NO SCOPE ADDITIONS
 Do not suggest, scaffold, or build anything beyond the 4 features above
-— no comments, likes, tags/categories beyond what's needed for search,
-notifications, admin dashboards, social sharing, audio recording,
-multi-language toggle, recommendation engines, gamification, etc. —
+— no comments, likes, tagging/categorization beyond simple search,
+notifications, email, admin dashboards beyond the review queue, social
+sharing, audio/video, multi-language UI toggle, recommendation engines,
+gamification, or design/animation polish beyond clean and readable —
 even if it seems like a natural improvement. If something seems like it
 would genuinely help, name it and ask first. Do not build it
 preemptively "while you're in there."
 
-## Data model (dialect-specific — confirm before changing)
-Each entry should capture, at minimum:
-- Dialect word or phrase
-- Standard Khmer equivalent (if one exists)
-- Meaning / definition
-- Usage note or example sentence
-- Who it was learned from (credited by name, with permission)
-- Status: still commonly used / rare / mostly forgotten
-- At least one photo
+## Data model (confirm before changing)
+`public.entries`, defined in `supabase/migrations/0001_init.sql`:
+- `name_khmer` — Khmer name of the dessert
+- `name_english` — English/transliterated name or description
+- `told_by` — which grandparent shared it (or both)
+- `context` — when/why it's made (festival, daily life, special occasion)
+- `description` — the story or memory, ingredients/method if known
+- `photo_url` — nullable; present if the dessert is still made and
+  photographed
+- `status` — `pending` / `published` / `rejected`
+- `contributor_id` — who submitted it
+- `created_at`
 
-Do not add extra fields (audio, video, pronunciation IPA, etc.) without
-asking first — the skeleton is deliberately minimal.
+Do not add extra fields (audio, video, ingredient lists as structured
+data, ratings, etc.) without asking first — the skeleton is deliberately
+minimal.
 
 ## Stack (locked)
-- Next.js (App Router), deployed to Vercel
-- Auth: Supabase Auth
+- Next.js 16 (App Router, TypeScript), deployed to Vercel
+- Auth: Supabase Auth (email + password)
 - Database: Supabase (Postgres, with Supabase Storage for photos)
-- Styling: Tailwind CSS
+- Styling: Tailwind CSS v4
 - Do not add new dependencies without asking first.
 
 ## Data rules (this is graded on security, not just looks)
 - Every edit/delete must check the entry's owner against the logged-in
-  user server-side — not just hide the button in the UI.
+  user in the database via RLS — not just hide the button in the UI.
 - Unreviewed/unpublished entries must be excluded from public queries
-  at the database/query level, not filtered client-side after fetching.
-- Be ready to explain every line shipped — no code nobody understands,
-  even if the AI wrote it.
+  at the database level (RLS), not filtered client-side after fetching.
+- The `service_role` key must never appear in this project. Only the
+  anon/publishable key.
+- Be ready to explain every line shipped. See `docs/architecture.md`.
 
 ## Sourcing & credit rules
-- Every entry must credit its source by name, with their permission.
+- Every entry must credit its source by name, with their permission
+  (`told_by` is `not null`).
 - Don't fabricate example entries or placeholder "sample data" that
-  looks real — use clearly marked dummy data during dev, swap for real
-  entries before anything is treated as final.
+  looks real. The rows in `supabase/seed.sql` are prefixed `[SAMPLE]`
+  and must be deleted before the archive is treated as final:
+  `delete from public.entries where told_by like '[SAMPLE%';`
 
 ## Current sprint focus
-[Update this every session — e.g. "Sprint 1: build the entry list page
-and search bar. No auth yet, no submission form yet — that's Sprint 2."]
+Sprint 1 is complete: browse page, keyword search, and entry detail page,
+all reading published entries only. Next up is Sprint 2 — Supabase Auth
+sign-up/log-in, the submission form with photo upload, and the "my
+entries" view. No review-queue UI yet; that is Sprint 3.
 
 ## Files AI can touch this session
-[Update per task — e.g. "/app/archive and /components/entry-* only."]
+Sprint 2 will need: `/app/(auth)`, `/app/submit`, `/app/my-entries`,
+`/lib/supabase/client.ts`, `middleware.ts`, and `/components/*`.
+Do not modify `supabase/migrations/0001_init.sql` in place — add a new
+numbered migration instead, so an already-deployed database can catch up.

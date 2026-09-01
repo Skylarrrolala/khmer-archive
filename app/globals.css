@@ -1,0 +1,30 @@
+@import "tailwindcss";
+
+/*
+ * Tailwind v4 is configured in CSS rather than a tailwind.config.js file.
+ * `@theme inline` registers design tokens; naming one `--color-*` makes
+ * Tailwind generate utilities for it (e.g. `bg-paper`, `text-ink`).
+ *
+ * A small warm palette, chosen once here so the pages stay consistent.
+ * Deliberately plain — this is a readable archive, not a portfolio piece.
+ */
+@theme inline {
+  --color-paper: #faf7f2;
+  --color-card: #ffffff;
+  --color-ink: #1f1b16;
+  --color-muted: #6b6156;
+  --color-line: #e3dcd0;
+  --color-accent: #8a4b2a;
+
+  /* The next/font variables are named --font-noto-* rather than
+     --font-sans / --font-khmer on purpose: a theme token defined in terms
+     of a variable with its own name would be a self-reference, which CSS
+     treats as invalid and silently drops. */
+  --font-sans: var(--font-noto-latin), var(--font-noto-khmer), system-ui, sans-serif;
+  --font-khmer: var(--font-noto-khmer), system-ui, sans-serif;
+}
+
+body {
+  background-color: var(--color-paper);
+  color: var(--color-ink);
+}

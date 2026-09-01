@@ -1,34 +1,104 @@
-# Prey Veng Khmer Dialect Archive
+# The Khmer Living Archive — Desserts Edition
 
-A community archive digitally preserving disappearing dialect vocabulary and
-phrases from Prey Veng Khmer — words and sayings passed down through the
-founder's grandparents and parents that don't exist, or mean something
-different, in standard Khmer.
+A community web archive preserving traditional Khmer desserts (នំ / *nom*) as
+made and remembered by my grandparents in **[PROVINCE — fill in]**.
 
-Built as an ICT 340 capstone project.
+Entries are of two kinds: desserts still actively made (with a photo of the
+real thing), and desserts remembered from earlier in life but no longer made
+(description only, sometimes with no photo at all). Every entry credits the
+person who shared it, by name, with their permission.
 
-## What it does
+Built as a capstone project for a "Vibe Coding with AI" course.
 
-1. **Browse & search** — anyone can explore dialect entries, no login needed.
-2. **Contributor accounts** — sign up to submit entries (text + at least one
-   photo per entry).
-3. **Ownership** — contributors can edit or delete only their own entries.
-4. **Review workflow** — new submissions stay hidden from the public until
-   reviewed and published.
+## The four features
 
-Each entry records the dialect word or phrase, its standard Khmer equivalent
-(if one exists), its meaning, a usage example, who it was learned from
-(credited by name, with permission), and whether it is still commonly used,
-rare, or mostly forgotten.
+| Sprint | Feature | Status |
+| --- | --- | --- |
+| 1 | Browse & search published entries, plus a detail page. No login. | **Done** |
+| 2 | Contributor accounts, submissions with a photo, edit/delete your own entries. | Not started |
+| 3 | Review workflow — submissions stay hidden until a reviewer publishes them. | Schema + policies in place; UI not started |
 
-## What it is not
-
-Not a general Khmer dictionary, not a translation tool, not a social
-platform, not a blog.
+Nothing outside these three sprints is in scope.
 
 ## Stack
 
-- [Next.js](https://nextjs.org/) (App Router)
-- [Supabase](https://supabase.com/) — auth, Postgres database, photo storage
-- [Tailwind CSS](https://tailwindcss.com/)
+- [Next.js](https://nextjs.org/) 16 (App Router) with TypeScript
+- [Supabase](https://supabase.com/) — Postgres, Auth, and Storage for photos
+- [Tailwind CSS](https://tailwindcss.com/) v4
 - Deployed on [Vercel](https://vercel.com/)
+
+## Setup
+
+### 1. Install dependencies
+
+```bash
+npm install
+```
+
+### 2. Create a Supabase project
+
+At [supabase.com](https://supabase.com/dashboard) create a free project, then
+open **SQL Editor** and run, in this order:
+
+1. `supabase/migrations/0001_init.sql` — creates the `entries` table, the Row
+   Level Security policies, and the `entry-photos` storage bucket.
+2. `supabase/seed.sql` — inserts three **clearly marked dummy entries** so the
+   browse page has something to show. Delete these before the archive is
+   treated as final:
+   ```sql
+   delete from public.entries where told_by like '[SAMPLE%';
+   ```
+
+### 3. Add your environment variables
+
+```bash
+cp .env.example .env.local
+```
+
+Fill in the two values from **Project Settings → API** in the Supabase
+dashboard. Only the *anon* (publishable) key belongs here — never the
+`service_role` key, which bypasses every security policy in this project.
+
+### 4. Run it
+
+```bash
+npm run dev
+```
+
+Open <http://localhost:3000>.
+
+### 5. Deploy to Vercel
+
+Import the repository at [vercel.com/new](https://vercel.com/new). Add the same
+two environment variables under **Settings → Environment Variables**, for the
+Production, Preview and Development environments. Vercel detects Next.js and
+needs no other configuration.
+
+## How security is enforced
+
+The short version: **in the database, not in the UI.**
+
+`supabase/migrations/0001_init.sql` turns on Row Level Security for the
+`entries` table, which makes it deny-by-default, and then grants back exactly
+four things:
+
+- anyone may read entries where `status = 'published'`;
+- a logged-in contributor may additionally read their own entries, whatever
+  the status;
+- a logged-in contributor may insert a row only if `contributor_id` is their
+  own id and `status` is `pending`;
+- a logged-in contributor may update or delete only rows whose
+  `contributor_id` is their own id.
+
+Because these run inside Postgres, they hold even if the app forgets a filter,
+and even if someone calls the Supabase REST API directly with the anon key.
+Storage photos are protected the same way: a contributor can only write into a
+folder named after their own user id.
+
+Longer walkthrough, including the file-by-file map:
+[`docs/architecture.md`](docs/architecture.md).
+
+## What this is not
+
+No comments, likes, tags, notifications, multi-language toggle, or admin
+dashboard beyond the Sprint 3 review queue.

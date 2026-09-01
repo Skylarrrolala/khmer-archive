@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600" role="img" aria-label="Sample photo placeholder">
+  <rect width="800" height="600" fill="#e7e0d4"/>
+  <text x="400" y="290" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="34" fill="#8a7f6a">SAMPLE PHOTO</text>
+  <text x="400" y="335" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#8a7f6a">placeholder — replace with a real photo</text>
+</svg>
