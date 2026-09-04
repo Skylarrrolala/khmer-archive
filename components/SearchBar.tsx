@@ -22,7 +22,13 @@ export function SearchBar({ query }: { query: string }) {
         type="search"
         defaultValue={query}
         placeholder="Search by name or occasion…"
-        className="min-w-0 flex-1 border border-line bg-accent-soft px-4 py-3 text-ink transition-colors placeholder:text-muted focus:border-accent focus:outline-none"
+        /* `basis-full` below sm so the field takes a row of its own and the
+           buttons wrap beneath it — sharing one row at 320px squeezed the
+           field until its placeholder truncated mid-word. Longhands rather
+           than the `flex-1` shorthand: `flex` would set a basis of its own,
+           and which of the two won at sm would come down to the order
+           Tailwind happens to emit them in. */
+        className="min-w-0 grow basis-full border border-line bg-accent-soft px-4 py-3 text-ink transition-colors placeholder:text-muted focus:border-accent focus:outline-none sm:basis-0"
       />
       <button
         type="submit"
