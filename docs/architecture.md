@@ -38,8 +38,8 @@ browser  ->  app/page.tsx  ->  lib/entries.ts  ->  lib/supabase/server.ts  ->  P
 
 | File | What it does |
 | --- | --- |
-| `app/layout.tsx` | The HTML shell: header, footer, and the two `next/font` families (Noto Sans for Latin, Noto Sans Khmer so the Khmer names render instead of showing empty boxes). |
-| `app/globals.css` | Tailwind v4 is configured in CSS, not a JS config file. `@theme inline` declares the small warm palette; naming a token `--color-paper` is what makes `bg-paper` exist as a utility. |
+| `app/layout.tsx` | The HTML shell: header, footer, and the three `next/font` families — Kantumruy Pro for body copy (it covers Latin *and* Khmer, so a mixed sentence stays in one typeface), Fraunces and Noto Serif Khmer for the display headings. A font that covers Khmer is required, not cosmetic: without one the names render as empty boxes. |
+| `app/globals.css` | Tailwind v4 is configured in CSS, not a JS config file. `@theme inline` declares the palette; naming a token `--color-card` is what makes `bg-card` exist as a utility. The palette is surface-aware: plain custom properties hold the current surface's colours, `@theme inline` points the tokens at them, and the cream backgrounds re-declare them, so `text-muted` is sand on the maroon ground and brown on a cream card. |
 | `app/page.tsx` | The public browse + search page. Reads `?q=` from the URL and passes it to `getPublishedEntries`. |
 | `app/entries/[id]/page.tsx` | The detail page for one dessert. Calls `notFound()` when there is no published entry with that id. |
 | `components/SearchBar.tsx` | A plain `<form method="get">` — no client-side JavaScript, no React state. Submitting navigates to `/?q=…`, which re-runs the server page and re-queries Postgres. The result is a shareable URL, and search works with JS disabled. |

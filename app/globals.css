@@ -3,43 +3,159 @@
 /*
  * Tailwind v4 is configured in CSS rather than a tailwind.config.js file.
  * `@theme inline` registers design tokens; naming one `--color-*` makes
- * Tailwind generate utilities for it (e.g. `bg-paper`, `text-ink`).
+ * Tailwind generate utilities for it (e.g. `bg-card`, `text-ink`).
  *
- * A warm palette for a dessert archive: cream paper, terracotta, and gold.
- * Every colour on the page comes from this block — there are no one-off hex
- * values in the components, so the whole archive can be re-tuned from here.
+ * ── Two surfaces, one set of utilities ─────────────────────────────────
+ * The archive sits on a deep maroon ground — the red of Khmer lacquerware
+ * and of a krama — with cream cards laid on top of it. That means the same
+ * utility has to mean two different things: `text-muted` is a warm sand on
+ * the maroon and a warm brown on the cream. So the palette is built in two
+ * steps rather than one:
  *
- * Contrast was checked against WCAG AA (4.5:1 for body text), not eyeballed:
- *   ink on paper     14.9:1    muted on paper    4.8:1
- *   accent on paper   5.8:1    white on accent   6.2:1
+ *   1. plain custom properties (`--fg-ink`, `--brand`, `--edge`, …) hold
+ *      the *current surface's* colours, and are re-declared per surface in
+ *      the two blocks below;
+ *   2. `@theme inline` maps the Tailwind tokens onto those properties.
  *
- * `gold` is the exception at 2.6:1 on paper — far below AA. It is a
- * decorative colour only: hairlines, rules, and icon strokes. Never put text
- * in it.
+ * `inline` is what makes this work. It substitutes the token's value into
+ * the utility, so `.text-muted` compiles to `color: var(--fg-muted)` and
+ * resolves against whichever surface the element is sitting inside. Without
+ * `inline`, Tailwind would freeze one value at build time and a card would
+ * look exactly like the page behind it.
+ *
+ * Contrast was measured against WCAG AA (4.5:1 for body text), not eyeballed:
+ *   on maroon   ink 12.7:1   muted 7.5:1   accent 6.9:1   on-accent 7.7:1
+ *   on cream    ink 14.6:1   muted 5.4:1   accent 7.3:1   accent/soft 6.5:1
+ *
+ * `gold` is the loose one: 10.7:1 on maroon but 4.6:1 on cream, and 4.1:1 on
+ * the accent-soft tint, which is why nothing puts gold text on that tint. It
+ * is a decorative colour — hairlines, rules, bullets, section numbers, icon
+ * strokes — and it is never the colour of a paragraph.
  */
-@theme inline {
-  --color-paper: #fbf6ee;
-  --color-card: #fffdf9;
-  --color-ink: #2a1f18;
-  --color-muted: #7a6a5b;
-  --color-line: #e8ddcb;
 
-  /* Terracotta — the archive's signature colour: Khmer names, buttons, links. */
-  --color-accent: #9a4a26;
-  /* A tint of the same hue, for filled panels that should stay quiet. */
-  --color-accent-soft: #f5e6da;
-  /* Decorative only. See the contrast note above. */
-  --color-gold: #c9922e;
-
-  /* The next/font variables are named --font-noto-* rather than
-     --font-sans / --font-khmer on purpose: a theme token defined in terms
-     of a variable with its own name would be a self-reference, which CSS
-     treats as invalid and silently drops. */
-  --font-sans: var(--font-noto-latin), var(--font-noto-khmer), system-ui, sans-serif;
-  --font-khmer: var(--font-noto-khmer), system-ui, sans-serif;
+/*
+ * Surface 1: the maroon page itself. `:root` only ever matches <html>, so
+ * these are the values every element inherits until a cream surface
+ * overrides them.
+ */
+:root {
+  --ground: #4a1520;
+  --fg-ink: #f7ecdd;
+  --fg-muted: #d3b39c;
+  --edge: #6e2a33;
+  --brand: #dfa73f;
+  --on-brand: #3a0f18;
+  --decor-gold: #f0d9a0;
 }
 
-body {
-  background-color: var(--color-paper);
-  color: var(--color-ink);
+/*
+ * Surface 2: the cream sheets. Keyed off the two background utilities that
+ * actually paint cream, so a card, a form field or a placeholder panel
+ * re-points the foreground properties for itself and everything inside it.
+ * Only custom properties are declared here — no colours are painted — so
+ * this never fights a utility for the same declaration.
+ */
+.bg-card,
+.bg-accent-soft {
+  --fg-ink: #2e1a15;
+  --fg-muted: #7a5b48;
+  --edge: #e0cdb2;
+  --brand: #8e2b2b;
+  --on-brand: #f8f0e3;
+  --decor-gold: #946212;
+}
+
+@theme inline {
+  /* The two grounds are fixed: they are what the surfaces are made of. */
+  --color-ground: var(--ground);
+  --color-card: #f8f0e3;
+  /* A cream tint one step down from `card`, for filled panels and pills. */
+  --color-accent-soft: #f0e2d0;
+
+  /* Everything else follows the surface it is drawn on. */
+  --color-ink: var(--fg-ink);
+  --color-muted: var(--fg-muted);
+  --color-line: var(--edge);
+  --color-accent: var(--brand);
+  /* The readable foreground for anything filled with `accent`. */
+  --color-on-accent: var(--on-brand);
+  /* Decorative only. See the contrast note above. */
+  --color-gold: var(--decor-gold);
+
+  /*
+   * Type. The next/font variables are named --font-fraunces / --font-kantumruy
+   * rather than --font-display / --font-sans on purpose: a theme token defined
+   * in terms of a variable with its own name would be a self-reference, which
+   * CSS treats as invalid and silently drops.
+   *
+   * Kantumruy Pro carries both Latin and Khmer, so body copy in either script
+   * comes out of one typeface with one set of proportions — no seam where a
+   * Khmer word sits inside an English sentence. It is also a Khmer-drawn face
+   * rather than a Latin family with Khmer bolted on.
+   *
+   * Headlines are the serif pair: Fraunces for Latin, Noto Serif Khmer for
+   * Khmer. Both are seriffed and warm, so a dessert's Khmer name and its
+   * English gloss read as the same voice rather than two.
+   */
+  --font-sans: var(--font-kantumruy), system-ui, sans-serif;
+  --font-display: var(--font-fraunces), var(--font-noto-serif-khmer), Georgia,
+    serif;
+  --font-khmer: var(--font-noto-serif-khmer), var(--font-kantumruy), serif;
+
+  /*
+   * Tailwind derives every spacing utility from this one number — `p-6` is
+   * `calc(var(--spacing) * 6)`. Nudging the 0.25rem default up to 0.28rem
+   * opens about 12% more air in every gap, pad and stack on the site, which
+   * is the "give it room" part of the design done from the theme rather than
+   * by editing a hundred component classes.
+   */
+  --spacing: 0.28rem;
+
+  /* Slightly softer corners than the stock 0.75rem, to match the warmer palette. */
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+}
+
+@layer base {
+  body {
+    background-color: var(--ground);
+    color: var(--fg-ink);
+  }
+
+  /*
+   * Headings take the display serif. This lives in `@layer base` so the
+   * `font-khmer` utility still wins on the Khmer names — utilities are a
+   * later layer than base, so they override it without needing `!important`.
+   *
+   * Tailwind's preflight resets headings to the body weight, so the weight is
+   * set here too; `font-semibold` and friends still override it where a
+   * component asks for something heavier.
+   */
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
+    font-weight: 500;
+    letter-spacing: -0.01em;
+  }
+
+  /*
+   * Numbered section labels, the way a printed feature numbers its sections.
+   * A CSS counter does it from the stylesheet, so the detail page's fields
+   * get 01 / 02 / 03 without the component having to know its own index.
+   */
+  main dl {
+    counter-reset: field;
+  }
+
+  main dl dt {
+    counter-increment: field;
+  }
+
+  main dl dt::before {
+    content: counter(field, decimal-leading-zero);
+    margin-right: 0.7em;
+    color: var(--decor-gold);
+    font-variant-numeric: tabular-nums;
+  }
 }

@@ -26,7 +26,7 @@ export function SearchBar({ query }: { query: string }) {
       />
       <button
         type="submit"
-        className="rounded-lg bg-accent px-5 py-2.5 font-medium text-white transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+        className="rounded-lg bg-accent px-5 py-2.5 font-medium text-on-accent transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
       >
         Search
       </button>

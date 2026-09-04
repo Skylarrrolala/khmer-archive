@@ -4,9 +4,10 @@
  * Shared by the browse card and the detail page so a gap looks the same
  * wherever it appears, the same reason <NoPhotoPanel /> is shared.
  *
- * `accent` on `accent-soft` measures 5.09:1, above the 4.5:1 AA floor that
- * app/globals.css documents. `muted` on the same tint is 4.26:1 and would
- * fail, and `gold` is decorative-only per that file — neither is usable here.
+ * The tint sets the cream surface context, so `accent` here is the deep
+ * lacquer red rather than the gold used on the maroon ground: 6.52:1 on the
+ * tint, above the 4.5:1 AA floor that app/globals.css documents. `muted` on
+ * the same tint is 4.83:1 and `gold` is 4.11:1 — neither is used here.
  */
 export function PendingBadge({ children }: { children: React.ReactNode }) {
   return (

@@ -23,7 +23,7 @@ export function NoPhotoPanel({ size = "sm" }: { size?: "sm" | "lg" }) {
         {/* Three rising dots where steam would be: the dessert is remembered,
             not cooking. Gold is decorative-only in this palette, which is
             exactly what an icon stroke is. */}
-        <g stroke="#c9922e" strokeWidth="2.5" strokeLinecap="round" opacity="0.75">
+        <g stroke="var(--decor-gold)" strokeWidth="2.5" strokeLinecap="round" opacity="0.75">
           <path d="M17 13v-3" />
           <path d="M24 11v-4" />
           <path d="M31 13v-3" />
@@ -31,7 +31,7 @@ export function NoPhotoPanel({ size = "sm" }: { size?: "sm" | "lg" }) {
         {/* The same bowl-and-mound mark as the photo placeholder, so the two
             empty states read as one family. */}
         <g
-          stroke="#9a4a26"
+          stroke="var(--brand)"
           strokeWidth="2.5"
           strokeLinecap="round"
           strokeLinejoin="round"

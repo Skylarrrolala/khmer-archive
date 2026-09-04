@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Noto_Sans, Noto_Sans_Khmer } from "next/font/google";
+import { Fraunces, Kantumruy_Pro, Noto_Serif_Khmer } from "next/font/google";
 import Link from "next/link";
 
 import "./globals.css";
@@ -8,19 +8,38 @@ import "./globals.css";
  * next/font downloads these at build time and self-hosts them, so there is no
  * request to Google at runtime and no layout shift while a font loads.
  *
- * Noto Sans Khmer is here because Khmer script is the primary content of the
- * archive; without a font that covers the script, many machines fall back to
- * tofu boxes. Each font is exposed as a CSS variable that `globals.css` wires
- * into the `--font-sans` / `--font-khmer` tokens.
+ * Three families, two jobs:
+ *
+ *   Kantumruy Pro  body copy and UI chrome. It ships both Latin and Khmer, so
+ *                  a Khmer word inside an English sentence keeps the same
+ *                  proportions instead of switching typeface mid-line. It is
+ *                  also drawn for Khmer first rather than extended into it.
+ *   Fraunces       Latin display: entry names in English, the wordmark.
+ *   Noto Serif Khmer
+ *                  Khmer display, so the Khmer name of a dessert is set in a
+ *                  serif that answers Fraunces. The archive previously used
+ *                  Noto *Sans* Khmer for these, which read as a different
+ *                  voice from the headline beside it.
+ *
+ * A font that covers Khmer is not optional here: without one, a machine with
+ * no Khmer coverage renders the names as tofu boxes. Each family is exposed as
+ * a CSS variable that `globals.css` wires into the `--font-sans`,
+ * `--font-display` and `--font-khmer` tokens.
  */
-const latin = Noto_Sans({
-  variable: "--font-noto-latin",
+const body = Kantumruy_Pro({
+  variable: "--font-kantumruy",
+  subsets: ["latin", "khmer"],
+  display: "swap",
+});
+
+const display = Fraunces({
+  variable: "--font-fraunces",
   subsets: ["latin"],
   display: "swap",
 });
 
-const khmer = Noto_Sans_Khmer({
-  variable: "--font-noto-khmer",
+const khmerDisplay = Noto_Serif_Khmer({
+  variable: "--font-noto-serif-khmer",
   subsets: ["khmer"],
   display: "swap",
 });
@@ -28,7 +47,7 @@ const khmer = Noto_Sans_Khmer({
 /** Next.js turns this into <title> and <meta name="description"> automatically. */
 export const metadata: Metadata = {
   /* Latin first in the <title>: browser tabs render with system fonts, not
-     the Noto Sans Khmer that next/font loads for the page, and a machine
+     the Khmer faces that next/font loads for the page, and a machine
      without Khmer coverage would show the tab as tofu boxes. */
   title: "Num (នំ) — The Khmer Living Archive",
   description:
@@ -42,17 +61,23 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`${latin.variable} ${khmer.variable}`}>
+    <html
+      lang="en"
+      className={`${body.variable} ${display.variable} ${khmerDisplay.variable}`}
+    >
       <body className="min-h-screen font-sans antialiased">
-        {/* A terracotta-to-gold hairline across the top. Purely decorative,
-            which is the only role `gold` is allowed in this palette — at
-            2.6:1 on paper it is far too low-contrast to carry text. */}
+        {/* A gold hairline across the top of the maroon. Purely decorative,
+            which is the role `gold` is allowed in this palette — on cream it
+            measures 4.6:1, too close to the floor to carry paragraphs. */}
         <div
           aria-hidden="true"
           className="h-1 bg-gradient-to-r from-accent via-gold to-accent"
         />
 
-        <header className="border-b border-line bg-card">
+        {/* No `bg-card` here: the masthead is part of the maroon ground, and
+            the cream is saved for the entries themselves. The hairline below
+            is the only thing separating it from the archive. */}
+        <header className="border-b border-line">
           <div className="mx-auto max-w-6xl px-4 py-8">
             {/*
               The wordmark leads with the Khmer, the same order the entry cards
@@ -67,7 +92,7 @@ export default function RootLayout({
               <span className="font-khmer text-4xl leading-[1.7] text-accent">
                 នំ
               </span>
-              <span className="text-2xl font-semibold tracking-tight text-ink">
+              <span className="font-display text-2xl font-semibold tracking-tight text-ink">
                 Num
               </span>
             </Link>
