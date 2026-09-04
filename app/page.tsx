@@ -52,8 +52,8 @@ export default async function BrowsePage({
            now, and a two-column grid there would stretch each card to ~560px,
            which makes the photo slot taller than the text beside it. */
         <ul className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {entries.map((entry) => (
-            <EntryCard key={entry.id} entry={entry} />
+          {entries.map((entry, index) => (
+            <EntryCard key={entry.id} entry={entry} index={index} />
           ))}
         </ul>
       )}

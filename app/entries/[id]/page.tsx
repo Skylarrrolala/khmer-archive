@@ -86,7 +86,11 @@ export default async function EntryPage({
         )}
       </header>
 
-      <div className="relative aspect-[4/3] overflow-hidden rounded-xl border border-line bg-accent-soft">
+      {/* Mounted rather than cropped, the same as the browse card: padding
+          for an even margin, `object-contain` so nothing is cut off. The frame
+          stays 4:3 here where the card's is square — a square at this width
+          would push the story itself below the fold on a laptop. */}
+      <div className="relative aspect-[4/3] overflow-hidden rounded-xl border border-line bg-accent-soft p-5">
         {entry.photo_url ? (
           <Image
             src={entry.photo_url}
@@ -98,7 +102,7 @@ export default async function EntryPage({
             }
             fill
             sizes="(max-width: 768px) 100vw, 768px"
-            className="object-cover"
+            className="object-contain"
             /* This is the largest image on the page, so it is loaded eagerly
                rather than lazily to keep the page from popping in. */
             priority

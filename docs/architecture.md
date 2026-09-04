@@ -43,7 +43,7 @@ browser  ->  app/page.tsx  ->  lib/entries.ts  ->  lib/supabase/server.ts  ->  P
 | `app/page.tsx` | The public browse + search page. Reads `?q=` from the URL and passes it to `getPublishedEntries`. |
 | `app/entries/[id]/page.tsx` | The detail page for one dessert. Calls `notFound()` when there is no published entry with that id. |
 | `components/SearchBar.tsx` | A plain `<form method="get">` — no client-side JavaScript, no React state. Submitting navigates to `/?q=…`, which re-runs the server page and re-queries Postgres. The result is a shareable URL, and search works with JS disabled. |
-| `components/EntryCard.tsx` | One dessert in the list. Handles the null-photo case with a labelled placeholder, because "remembered but not made today" is a real state of the data. |
+| `components/EntryCard.tsx` | One dessert in the list. Handles the null-photo case with a labelled placeholder, because "remembered but not made today" is a real state of the data. Photos are mounted (`object-contain` in a padded square) rather than cropped, since the archive's photos range from tall to wide and a fixed crop cut the tall ones in half. Takes an `index` purely for the printed 01 / 02 / 03, which is `aria-hidden` because it renumbers with every search. |
 
 ### Config
 
