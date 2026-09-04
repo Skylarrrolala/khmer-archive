@@ -41,23 +41,32 @@ export default async function BrowsePage({
   return (
     <>
       <section className="relative overflow-hidden bg-card">
-        {/*
-          The wordmark at poster size, sunk into the cream. Far under the
-          4.5:1 the palette holds text to — deliberately, because it is not
-          text. `opacity` rather than a `text-accent/8` colour: the alpha form
-          compiles to a color-mix() behind an @supports, and its fallback is
-          the accent at full strength, which would drop a solid maroon នំ over
-          the headline. aria-hidden and unselectable so it stays out of the
-          document for a screen reader and out of the way of a cursor.
-        */}
-        <span
-          aria-hidden="true"
-          className="pointer-events-none absolute -right-10 top-1/2 -translate-y-1/2 select-none font-khmer text-[16rem] leading-none text-accent opacity-[0.08] sm:text-[22rem]"
-        >
-          នំ
-        </span>
-
         <div className="relative mx-auto max-w-6xl px-6 py-20 sm:py-28">
+          {/*
+            The wordmark at poster size, sunk into the cream. Far under the
+            4.5:1 the palette holds text to — deliberately, because it is not
+            text. `opacity` rather than a `text-accent/8` colour: the alpha form
+            compiles to a color-mix() behind an @supports, and its fallback is
+            the accent at full strength, which would drop a solid maroon នំ over
+            the headline. aria-hidden and unselectable so it stays out of the
+            document for a screen reader and out of the way of a cursor.
+
+            Inside the container rather than the full-bleed section, and pinned
+            to the content's right edge, so the whole glyph is on the page — off
+            the section's edge it was clipped down to a few unreadable curves.
+
+            Only from `xl` up. The headline is capped at max-w-3xl, and the
+            clear space beside it is narrower than the glyph until then; below
+            that the នំ crosses the type and reads as a smudge rather than a
+            watermark behind it.
+          */}
+          <span
+            aria-hidden="true"
+            className="pointer-events-none absolute right-6 top-1/2 hidden -translate-y-1/2 select-none font-khmer text-[16rem] leading-none text-accent opacity-[0.08] xl:block"
+          >
+            នំ
+          </span>
+
           <p className="text-xs uppercase tracking-[0.22em] text-muted">
             The Khmer Living Archive
           </p>
