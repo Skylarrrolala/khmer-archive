@@ -27,9 +27,12 @@ const khmer = Noto_Sans_Khmer({
 
 /** Next.js turns this into <title> and <meta name="description"> automatically. */
 export const metadata: Metadata = {
-  title: "The Khmer Living Archive — Desserts",
+  /* Latin first in the <title>: browser tabs render with system fonts, not
+     the Noto Sans Khmer that next/font loads for the page, and a machine
+     without Khmer coverage would show the tab as tofu boxes. */
+  title: "Num (នំ) — The Khmer Living Archive",
   description:
-    "A community archive of traditional Khmer desserts (nom), remembered and " +
+    "A community archive of traditional Khmer desserts (num), remembered and " +
     "recorded with the people who make them.",
 };
 
@@ -41,20 +44,43 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${latin.variable} ${khmer.variable}`}>
       <body className="min-h-screen font-sans antialiased">
+        {/* A terracotta-to-gold hairline across the top. Purely decorative,
+            which is the only role `gold` is allowed in this palette — at
+            2.6:1 on paper it is far too low-contrast to carry text. */}
+        <div
+          aria-hidden="true"
+          className="h-1 bg-gradient-to-r from-accent via-gold to-accent"
+        />
+
         <header className="border-b border-line bg-card">
-          <div className="mx-auto flex max-w-3xl flex-col gap-1 px-4 py-6">
-            <Link href="/" className="text-xl font-semibold text-ink">
-              The Khmer Living Archive
+          <div className="mx-auto max-w-6xl px-4 py-8">
+            {/*
+              The wordmark leads with the Khmer, the same order the entry cards
+              use: នំ is the thing being archived, and "Num" is the gloss for a
+              reader who cannot yet read the script.
+
+              `items-baseline` rather than `items-center` so the two sit on a
+              shared baseline despite the size difference, and the generous
+              leading keeps the nikahit (ំ) above ន from being clipped.
+            */}
+            <Link href="/" className="inline-flex items-baseline gap-3">
+              <span className="font-khmer text-4xl leading-[1.7] text-accent">
+                នំ
+              </span>
+              <span className="text-2xl font-semibold tracking-tight text-ink">
+                Num
+              </span>
             </Link>
-            <p className="text-sm text-muted">
-              Traditional desserts (នំ), remembered and recorded.
+            <p className="mt-1 text-sm text-muted">
+              The Khmer Living Archive — traditional desserts, remembered and
+              recorded.
             </p>
           </div>
         </header>
 
-        <main className="mx-auto max-w-3xl px-4 py-8">{children}</main>
+        <main className="mx-auto max-w-6xl px-4 py-8">{children}</main>
 
-        <footer className="mx-auto max-w-3xl px-4 pb-10 text-sm text-muted">
+        <footer className="mx-auto max-w-6xl border-t border-line px-4 py-6 text-sm text-muted">
           Every entry is credited to the person who shared it, with their
           permission.
         </footer>

@@ -42,13 +42,16 @@ export default async function BrowsePage({
       </p>
 
       {entries.length === 0 ? (
-        <p className="rounded-lg border border-line bg-card p-6 text-muted">
+        <p className="rounded-xl border border-line bg-card p-6 text-muted">
           {query
             ? "No desserts match that search yet."
             : "No entries have been published yet."}
         </p>
       ) : (
-        <ul className="grid gap-4 sm:grid-cols-2">
+        /* Three columns at the widest breakpoint. The container is max-w-6xl
+           now, and a two-column grid there would stretch each card to ~560px,
+           which makes the photo slot taller than the text beside it. */
+        <ul className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {entries.map((entry) => (
             <EntryCard key={entry.id} entry={entry} />
           ))}
@@ -64,7 +67,7 @@ export default async function BrowsePage({
  */
 function SetupNotice() {
   return (
-    <div className="space-y-2 rounded-lg border border-line bg-card p-6">
+    <div className="space-y-2 rounded-xl border border-line bg-card p-6">
       <h2 className="font-semibold">Supabase is not configured yet</h2>
       <p className="text-sm text-muted">
         Copy <code>.env.example</code> to <code>.env.local</code>, fill in the

@@ -5,16 +5,31 @@
  * `@theme inline` registers design tokens; naming one `--color-*` makes
  * Tailwind generate utilities for it (e.g. `bg-paper`, `text-ink`).
  *
- * A small warm palette, chosen once here so the pages stay consistent.
- * Deliberately plain — this is a readable archive, not a portfolio piece.
+ * A warm palette for a dessert archive: cream paper, terracotta, and gold.
+ * Every colour on the page comes from this block — there are no one-off hex
+ * values in the components, so the whole archive can be re-tuned from here.
+ *
+ * Contrast was checked against WCAG AA (4.5:1 for body text), not eyeballed:
+ *   ink on paper     14.9:1    muted on paper    4.8:1
+ *   accent on paper   5.8:1    white on accent   6.2:1
+ *
+ * `gold` is the exception at 2.6:1 on paper — far below AA. It is a
+ * decorative colour only: hairlines, rules, and icon strokes. Never put text
+ * in it.
  */
 @theme inline {
-  --color-paper: #faf7f2;
-  --color-card: #ffffff;
-  --color-ink: #1f1b16;
-  --color-muted: #6b6156;
-  --color-line: #e3dcd0;
-  --color-accent: #8a4b2a;
+  --color-paper: #fbf6ee;
+  --color-card: #fffdf9;
+  --color-ink: #2a1f18;
+  --color-muted: #7a6a5b;
+  --color-line: #e8ddcb;
+
+  /* Terracotta — the archive's signature colour: Khmer names, buttons, links. */
+  --color-accent: #9a4a26;
+  /* A tint of the same hue, for filled panels that should stay quiet. */
+  --color-accent-soft: #f5e6da;
+  /* Decorative only. See the contrast note above. */
+  --color-gold: #c9922e;
 
   /* The next/font variables are named --font-noto-* rather than
      --font-sans / --font-khmer on purpose: a theme token defined in terms

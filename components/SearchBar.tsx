@@ -12,7 +12,7 @@ import Link from "next/link";
  */
 export function SearchBar({ query }: { query: string }) {
   return (
-    <form method="get" action="/" className="flex gap-2">
+    <form method="get" action="/" className="flex flex-wrap gap-2">
       <label htmlFor="q" className="sr-only">
         Search desserts by name or occasion
       </label>
@@ -22,18 +22,18 @@ export function SearchBar({ query }: { query: string }) {
         type="search"
         defaultValue={query}
         placeholder="Search by name or occasion…"
-        className="w-full rounded border border-line bg-card px-3 py-2 text-ink placeholder:text-muted focus:border-accent focus:outline-none"
+        className="min-w-0 flex-1 rounded-lg border border-line bg-card px-4 py-2.5 text-ink transition-colors placeholder:text-muted focus:border-accent focus:outline-none"
       />
       <button
         type="submit"
-        className="rounded bg-accent px-4 py-2 font-medium text-white"
+        className="rounded-lg bg-accent px-5 py-2.5 font-medium text-white transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
       >
         Search
       </button>
       {query ? (
         <Link
           href="/"
-          className="flex items-center rounded border border-line px-4 py-2 text-muted"
+          className="flex items-center rounded-lg border border-line px-5 py-2.5 text-muted transition-colors hover:border-accent hover:text-accent"
         >
           Clear
         </Link>

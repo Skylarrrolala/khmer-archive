@@ -159,7 +159,7 @@ with check (
 ```
 
 `storage.foldername()` splits the object path on `/`, so `[1]` is the first
-folder. A contributor writing to `entry-photos/<their-uid>/nom-kom.jpg` is
+folder. A contributor writing to `entry-photos/<their-uid>/num-kom.jpg` is
 allowed; writing to another contributor's folder — or overwriting a photo in
 it — is refused.
 
