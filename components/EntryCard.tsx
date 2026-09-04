@@ -2,6 +2,8 @@ import Image from "next/image";
 import Link from "next/link";
 
 import { NoPhotoPanel } from "@/components/NoPhotoPanel";
+import { PendingBadge } from "@/components/PendingBadge";
+import { isPlaceholder } from "@/lib/placeholders";
 import type { Entry } from "@/lib/types";
 
 /**
@@ -26,8 +28,23 @@ import type { Entry } from "@/lib/types";
  * photographed. That case gets <NoPhotoPanel />, which is a designed state
  * rather than a broken-image apology, so the absence reads as part of the
  * record.
+ *
+ * The bracketed fields work the same way. A row that has no confirmed Khmer
+ * spelling, no recorded occasion or no verified source holds a marker instead
+ * of a value (see lib/placeholders.ts), and each one renders as a badge. The
+ * marker stays in the database, where the cleanup queries match on it; what a
+ * visitor sees is a stated gap rather than an editing note.
+ *
+ * When it is the Khmer name that is missing, the English name is promoted
+ * into the <h2> rather than a badge being put there. A heading that reads
+ * "Khmer name pending" would place a status message in the document outline,
+ * where a screen reader expects the name of the dessert.
  */
 export function EntryCard({ entry }: { entry: Entry }) {
+  const khmerPending = isPlaceholder(entry.name_khmer);
+  const contextPending = isPlaceholder(entry.context);
+  const sourcePending = isPlaceholder(entry.told_by);
+
   return (
     <li className="group overflow-hidden rounded-xl border border-line bg-card transition-colors hover:border-accent">
       <Link
@@ -38,7 +55,14 @@ export function EntryCard({ entry }: { entry: Entry }) {
           {entry.photo_url ? (
             <Image
               src={entry.photo_url}
-              alt={`${entry.name_english} (${entry.name_khmer})`}
+              /* The Khmer name is dropped from the alt text when it is a
+                 marker. Otherwise a screen reader would announce the photo as
+                 "... ([KHMER SCRIPT NOT CONFIRMED])". */
+              alt={
+                khmerPending
+                  ? entry.name_english
+                  : `${entry.name_english} (${entry.name_khmer})`
+              }
               fill
               /* Tells the optimizer how wide the image renders, so it does not
                  ship a 1200px file into a 350px slot. */
@@ -51,17 +75,38 @@ export function EntryCard({ entry }: { entry: Entry }) {
         </div>
 
         <div className="space-y-1 border-t border-line p-4">
-          <h2 className="font-khmer text-2xl leading-[1.7] text-accent">
-            {entry.name_khmer}
-          </h2>
-          <p className="text-sm font-medium text-ink">{entry.name_english}</p>
+          {khmerPending ? (
+            <>
+              <h2 className="text-2xl text-accent">{entry.name_english}</h2>
+              <PendingBadge>Khmer name pending</PendingBadge>
+            </>
+          ) : (
+            <>
+              <h2 className="font-khmer text-2xl leading-[1.7] text-accent">
+                {entry.name_khmer}
+              </h2>
+              <p className="text-sm font-medium text-ink">
+                {entry.name_english}
+              </p>
+            </>
+          )}
 
-          <div className="flex flex-wrap items-center gap-x-2 pt-1 text-xs text-muted">
-            <span className="uppercase tracking-wide">{entry.context}</span>
+          {/* `gap-y-1` because a badge is taller than the plain text it
+              replaces, so a wrapped row would otherwise collide. */}
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 pt-1 text-xs text-muted">
+            {contextPending ? (
+              <PendingBadge>Occasion not recorded</PendingBadge>
+            ) : (
+              <span className="uppercase tracking-wide">{entry.context}</span>
+            )}
             <span aria-hidden="true" className="text-gold">
               •
             </span>
-            <span>Told by {entry.told_by}</span>
+            {sourcePending ? (
+              <PendingBadge>Source pending verification</PendingBadge>
+            ) : (
+              <span>Told by {entry.told_by}</span>
+            )}
           </div>
         </div>
       </Link>
