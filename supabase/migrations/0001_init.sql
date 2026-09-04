@@ -174,7 +174,7 @@ create policy "entry photos are readable by everyone"
   using (bucket_id = 'entry-photos');
 
 -- A logged-in contributor may upload only INTO A FOLDER NAMED AFTER THEIR
--- OWN USER ID, e.g. `entry-photos/<uid>/nom-ansom.jpg`.
+-- OWN USER ID, e.g. `entry-photos/<uid>/num-ansom.jpg`.
 -- `storage.foldername(name)` splits the object path on '/', so
 -- `(storage.foldername(name))[1]` is that first folder. Comparing it to
 -- auth.uid() is the storage equivalent of the ownership check above:

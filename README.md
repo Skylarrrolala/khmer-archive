@@ -1,7 +1,7 @@
 # The Khmer Living Archive — Desserts Edition
 
 A community web archive preserving traditional Khmer desserts (នំ / *nom*) as
-made and remembered by my grandparents in **[PROVINCE — fill in]**.
+made and remembered by my grandparents in **Prey Veng**.
 
 Entries are of two kinds: desserts still actively made (with a photo of the
 real thing), and desserts remembered from earlier in life but no longer made
