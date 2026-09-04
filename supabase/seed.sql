@@ -10,6 +10,10 @@
 -- Every row is inserted with contributor_id = null (nobody owns sample data)
 -- and status = 'published' so Sprint 1's public page has content.
 --
+-- The first row now carries a real (internet-sourced) photograph instead of
+-- the placeholder SVG. See the [PHOTO CREDIT PENDING ...] note in its
+-- description — that image is not ours either.
+--
 -- To wipe them once real entries exist:
 --   delete from public.entries where told_by like '[SAMPLE%';
 -- =============================================================================
@@ -24,8 +28,11 @@ values
     'Festival',
     '[SAMPLE DATA — placeholder text, not a real memory. Replace this with '
     'the story your grandparents actually tell about this dessert: when they '
-    'make it, who taught them, and how it is prepared.]',
-    '/sample-photo-placeholder.svg',
+    'make it, who taught them, and how it is prepared.] '
+    '[PHOTO CREDIT PENDING — the photo on this entry is not ours. Replace '
+    'it with a family photograph, or one that is licensed and credited, '
+    'before this archive is shared.]',
+    '/entries/num-ansom-chek.jpg',
     'published'
   ),
   (
@@ -36,16 +43,6 @@ values
     '[SAMPLE DATA — placeholder text, not a real memory. This row has no '
     'photo on purpose: it stands in for a dessert that is remembered but no '
     'longer made, which the archive supports.]',
-    null,
-    'published'
-  ),
-  (
-    'បបរស្ករត្នោត',
-    '[SAMPLE] Bobor Skor Tnaot — palm sugar rice pudding',
-    '[SAMPLE DATA — replace with a real, credited source]',
-    'Daily life',
-    '[SAMPLE DATA — placeholder text, not a real memory. Replace before '
-    'submitting or sharing this archive.]',
     null,
     'published'
   );
@@ -60,11 +57,15 @@ values
 -- is marked '[SOURCE PENDING ...]' and must be replaced with a real person,
 -- credited by name and with their permission, before the archive is final.
 --
--- Three rows carry '[KHMER SCRIPT NOT CONFIRMED]' in name_khmer. The spelling
--- was not supplied and is deliberately NOT guessed: in a preservation archive
--- a wrong spelling is worse than a visible gap. That text renders as the card
--- headline until it is filled in. Same reasoning for '[NOT RECORDED]' in
--- context, on the rows where no occasion was given.
+-- The Khmer spellings and occasions were supplied by the project owner and
+-- are filled in. What is still missing is the SOURCING: who told it, and
+-- their permission to be credited.
+--
+-- The photos in public/entries/ are internet images, NOT family
+-- photographs. Two of them still carry another photographer's camera in
+-- their EXIF. Every row using one says so in its description, and they must
+-- be replaced with family photographs — or with licensed, credited images —
+-- before this archive is shared.
 --
 -- To find every row still awaiting sourcing:
 --   select * from public.entries where told_by like '[SOURCE PENDING%';
@@ -81,52 +82,73 @@ values
     'The savoury version of num ansom. Instead of banana, the sticky rice is '
     'filled with pork belly and mung bean, then wrapped and steamed. Made for '
     'Pchum Ben, Khmer New Year and weddings. [Internet reference — not yet '
-    'verified with family.]',
-    null,
+    'verified with family.] '
+    '[PHOTO CREDIT PENDING — the photo on this entry is not ours. Replace '
+    'it with a family photograph, or one that is licensed and credited, '
+    'before this archive is shared.]',
+    '/entries/num-ansom-chrouk.jpg',
     'published'
   ),
   (
-    '[KHMER SCRIPT NOT CONFIRMED]',
+    'នំផ្លែអាយ',
     'Num Plae Ai — palm sugar sticky rice balls rolled in coconut',
     '[SOURCE PENDING — internet reference, not yet verified with family]',
-    '[NOT RECORDED]',
+    'Daily life',
     'Balls of glutinous rice dough with a palm sugar centre, boiled and then '
-    'rolled in fresh grated coconut. The nickname "kill husband cake" comes '
-    'from a Khmer folk legend; the dessert itself is perfectly safe to eat. '
-    '[Internet reference — not yet verified with family. Khmer spelling still '
-    'to be confirmed.]',
-    null,
+    'rolled in fresh grated coconut. Mostly an everyday market snack or '
+    'family dessert. The nickname "kill husband cake" comes from a Khmer '
+    'folk legend; the dessert itself is perfectly safe to eat. The balls are '
+    'also playfully associated with childbirth, because they pop up to the '
+    'surface of the water as soon as they are cooked. '
+    '[Internet reference — not yet verified with family.] '
+    '[PHOTO CREDIT PENDING — the photo on this entry is not ours. Replace '
+    'it with a family photograph, or one that is licensed and credited, '
+    'before this archive is shared.]',
+    '/entries/num-plae-ai.jpg',
     'published'
   ),
   (
-    '[KHMER SCRIPT NOT CONFIRMED]',
+    'នំកង',
     'Num Korng — crispy fried rice-flour donuts',
     '[SOURCE PENDING — internet reference, not yet verified with family]',
     'Daily life',
     'Rings of rice-flour batter deep-fried until crisp. Sold by street '
     'vendors, often in the morning near schools. [Internet reference — not '
-    'yet verified with family. Khmer spelling still to be confirmed.]',
-    null,
+    'yet verified with family.] '
+    '[PHOTO CREDIT PENDING — the photo on this entry is not ours. Replace '
+    'it with a family photograph, or one that is licensed and credited, '
+    'before this archive is shared.]',
+    '/entries/num-korng.jpg',
     'published'
   ),
   (
     'នំអាកោរ',
-    'Num Akor — steamed fermented rice cake with coconut cream filling',
+    'Num Akor — steamed palm sugar sponge cake topped with grated coconut',
     '[SOURCE PENDING — internet reference, not yet verified with family]',
-    '[NOT RECORDED]',
-    'A steamed cake made from fermented rice batter, with a coconut cream '
-    'filling. [Internet reference — not yet verified with family.]',
-    null,
+    'Festival',
+    'A fluffy, steamed palm-sugar sponge cake made from fermented rice '
+    'flour, traditionally topped with freshly grated coconut. A staple for '
+    'religious festivals, especially Pchum Ben and Khmer New Year, where it '
+    'is offered to monks and ancestors. Also a standard morning market '
+    'breakfast. [Internet reference — not yet verified with family.] '
+    '[PHOTO CREDIT PENDING — the photo on this entry is not ours. Replace '
+    'it with a family photograph, or one that is licensed and credited, '
+    'before this archive is shared.]',
+    '/entries/num-akor.jpg',
     'published'
   ),
   (
-    '[KHMER SCRIPT NOT CONFIRMED]',
+    'នំបត់',
     'Num Bot — mung bean glutinous rice dumpling in banana leaf',
     '[SOURCE PENDING — internet reference, not yet verified with family]',
-    '[NOT RECORDED]',
+    'Festival',
     'A glutinous rice dumpling filled with mung bean paste, wrapped in banana '
-    'leaves and folded into a pyramid shape. [Internet reference — not yet '
-    'verified with family. Khmer spelling still to be confirmed.]',
-    null,
+    'leaves and folded into a pyramid shape. Heavily tied to Pchum Ben, when '
+    'they are made in large batches to take to the pagoda. '
+    '[Internet reference — not yet verified with family.] '
+    '[PHOTO CREDIT PENDING — the photo on this entry is not ours. Replace '
+    'it with a family photograph, or one that is licensed and credited, '
+    'before this archive is shared.]',
+    '/entries/num-bot.jpg',
     'published'
   );
