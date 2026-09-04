@@ -110,10 +110,6 @@
    * by editing a hundred component classes.
    */
   --spacing: 0.28rem;
-
-  /* Slightly softer corners than the stock 0.75rem, to match the warmer palette. */
-  --radius-lg: 0.75rem;
-  --radius-xl: 1rem;
 }
 
 @layer base {
@@ -143,6 +139,11 @@
    * Numbered section labels, the way a printed feature numbers its sections.
    * A CSS counter does it from the stylesheet, so the detail page's fields
    * get 01 / 02 / 03 without the component having to know its own index.
+   *
+   * The numeral sits above its label as a large serif italic, so it reads as
+   * a printed section number rather than a list bullet. `letter-spacing` and
+   * `text-transform` are reset because the <dt> it hangs off is a wide-tracked
+   * uppercase label, and digits should inherit neither.
    */
   main dl {
     counter-reset: field;
@@ -154,8 +155,15 @@
 
   main dl dt::before {
     content: counter(field, decimal-leading-zero);
-    margin-right: 0.7em;
+    display: block;
+    margin-bottom: 0.45rem;
     color: var(--decor-gold);
-    font-variant-numeric: tabular-nums;
+    font-family: var(--font-display);
+    font-size: 1.875rem;
+    font-style: italic;
+    font-weight: 400;
+    letter-spacing: normal;
+    line-height: 1;
+    text-transform: none;
   }
 }

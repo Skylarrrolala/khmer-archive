@@ -18,6 +18,12 @@ export const dynamic = "force-dynamic";
  * In the App Router, `searchParams` arrives as a Promise and is awaited. A
  * value can be a string or an array of strings (`?q=a&q=b`), so it is narrowed
  * to a single string before use.
+ *
+ * The page is built as two full-bleed bands rather than one column: a cream
+ * sheet carrying the archive's name and the search, and the maroon ground
+ * below it carrying the entries. <main> deliberately has no container of its
+ * own (see app/layout.tsx) so each band can run edge to edge and centre its
+ * own content.
  */
 export default async function BrowsePage({
   searchParams,
@@ -30,34 +36,68 @@ export default async function BrowsePage({
   if (!isSupabaseConfigured()) return <SetupNotice />;
 
   const entries = await getPublishedEntries(query);
+  const count = `${entries.length} ${entries.length === 1 ? "entry" : "entries"}`;
 
   return (
-    <div className="space-y-6">
-      <SearchBar query={query} />
+    <>
+      <section className="relative overflow-hidden bg-card">
+        {/*
+          The wordmark at poster size, sunk into the cream. Far under the
+          4.5:1 the palette holds text to — deliberately, because it is not
+          text. `opacity` rather than a `text-accent/8` colour: the alpha form
+          compiles to a color-mix() behind an @supports, and its fallback is
+          the accent at full strength, which would drop a solid maroon នំ over
+          the headline. aria-hidden and unselectable so it stays out of the
+          document for a screen reader and out of the way of a cursor.
+        */}
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute -right-10 top-1/2 -translate-y-1/2 select-none font-khmer text-[16rem] leading-none text-accent opacity-[0.08] sm:text-[22rem]"
+        >
+          នំ
+        </span>
 
-      <p className="text-sm text-muted">
-        {query
-          ? `${entries.length} ${entries.length === 1 ? "entry" : "entries"} matching “${query}”`
-          : `${entries.length} ${entries.length === 1 ? "entry" : "entries"} in the archive`}
-      </p>
+        <div className="relative mx-auto max-w-6xl px-6 py-20 sm:py-28">
+          <p className="text-xs uppercase tracking-[0.22em] text-muted">
+            The Khmer Living Archive
+          </p>
 
-      {entries.length === 0 ? (
-        <p className="rounded-xl border border-line bg-card p-6 text-muted">
-          {query
-            ? "No desserts match that search yet."
-            : "No entries have been published yet."}
+          {/* The tagline that used to sit under the masthead, promoted to the
+              headline it always was. Uppercase because the serif carries the
+              weight at this size, and Khmer has no case to lose by it. */}
+          <h1 className="mt-7 max-w-3xl text-4xl uppercase leading-[1.08] tracking-[0.01em] text-accent sm:text-5xl lg:text-6xl">
+            Traditional desserts, remembered and recorded.
+          </h1>
+
+          <div className="mt-12 max-w-2xl">
+            <SearchBar query={query} />
+          </div>
+        </div>
+      </section>
+
+      <section className="mx-auto max-w-6xl px-6 py-16">
+        <p className="text-xs uppercase tracking-[0.22em] text-muted">
+          {query ? `${count} matching “${query}”` : `${count} in the archive`}
         </p>
-      ) : (
-        /* Three columns at the widest breakpoint. The container is max-w-6xl
-           now, and a two-column grid there would stretch each card to ~560px,
-           which makes the photo slot taller than the text beside it. */
-        <ul className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {entries.map((entry, index) => (
-            <EntryCard key={entry.id} entry={entry} index={index} />
-          ))}
-        </ul>
-      )}
-    </div>
+
+        {entries.length === 0 ? (
+          <p className="mt-8 border border-line bg-card p-8 text-muted">
+            {query
+              ? "No desserts match that search yet."
+              : "No entries have been published yet."}
+          </p>
+        ) : (
+          /* Three columns at the widest breakpoint. The container is max-w-6xl
+             now, and a two-column grid there would stretch each card to ~560px,
+             which makes the photo slot taller than the text beside it. */
+          <ul className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {entries.map((entry, index) => (
+              <EntryCard key={entry.id} entry={entry} index={index} />
+            ))}
+          </ul>
+        )}
+      </section>
+    </>
   );
 }
 
@@ -67,13 +107,17 @@ export default async function BrowsePage({
  */
 function SetupNotice() {
   return (
-    <div className="space-y-2 rounded-xl border border-line bg-card p-6">
-      <h2 className="font-semibold">Supabase is not configured yet</h2>
-      <p className="text-sm text-muted">
-        Copy <code>.env.example</code> to <code>.env.local</code>, fill in the
-        project URL and anon key from your Supabase dashboard, then restart the
-        dev server. See the README for the full setup steps.
-      </p>
-    </div>
+    <section className="mx-auto max-w-6xl px-6 py-16">
+      <div className="space-y-2 border border-line bg-card p-8">
+        <h2 className="text-xl font-semibold">
+          Supabase is not configured yet
+        </h2>
+        <p className="text-sm text-muted">
+          Copy <code>.env.example</code> to <code>.env.local</code>, fill in the
+          project URL and anon key from your Supabase dashboard, then restart
+          the dev server. See the README for the full setup steps.
+        </p>
+      </div>
+    </section>
   );
 }

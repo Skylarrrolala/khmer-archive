@@ -35,6 +35,9 @@ const body = Kantumruy_Pro({
 const display = Fraunces({
   variable: "--font-fraunces",
   subsets: ["latin"],
+  /* The italic is not decoration: the section numerals (01 / 02 / 03) are set
+     in it, on the cards and on the detail page's fields. */
+  style: ["normal", "italic"],
   display: "swap",
 });
 
@@ -75,10 +78,11 @@ export default function RootLayout({
         />
 
         {/* No `bg-card` here: the masthead is part of the maroon ground, and
-            the cream is saved for the entries themselves. The hairline below
-            is the only thing separating it from the archive. */}
+            the cream is saved for the entries themselves. It is a thin rule
+            rather than a block — the archive's own name is the headline of the
+            band below it, so repeating it here at size would say it twice. */}
         <header className="border-b border-line">
-          <div className="mx-auto max-w-6xl px-4 py-8">
+          <div className="mx-auto flex max-w-6xl flex-wrap items-baseline justify-between gap-x-6 gap-y-2 px-6 py-5">
             {/*
               The wordmark leads with the Khmer, the same order the entry cards
               use: នំ is the thing being archived, and "Num" is the gloss for a
@@ -89,25 +93,29 @@ export default function RootLayout({
               leading keeps the nikahit (ំ) above ន from being clipped.
             */}
             <Link href="/" className="inline-flex items-baseline gap-3">
-              <span className="font-khmer text-4xl leading-[1.7] text-accent">
+              <span className="font-khmer text-2xl leading-[1.7] text-accent">
                 នំ
               </span>
-              <span className="font-display text-2xl font-semibold tracking-tight text-ink">
+              <span className="font-display text-lg italic tracking-tight text-ink">
                 Num
               </span>
             </Link>
-            <p className="mt-1 text-sm text-muted">
-              The Khmer Living Archive — traditional desserts, remembered and
-              recorded.
-            </p>
+            <span className="text-[0.7rem] uppercase tracking-[0.22em] text-muted">
+              The Khmer Living Archive
+            </span>
           </div>
         </header>
 
-        <main className="mx-auto max-w-6xl px-4 py-8">{children}</main>
+        {/* No container here. Each page draws its own full-bleed cream and
+            maroon bands, and a max-width on <main> would trap them in a
+            column. The pages centre their own content instead. */}
+        <main>{children}</main>
 
-        <footer className="mx-auto max-w-6xl border-t border-line px-4 py-6 text-sm text-muted">
-          Every entry is credited to the person who shared it, with their
-          permission.
+        <footer className="border-t border-line">
+          <div className="mx-auto max-w-6xl px-6 py-10 text-sm text-muted">
+            Every entry is credited to the person who shared it, with their
+            permission.
+          </div>
         </footer>
       </body>
     </html>

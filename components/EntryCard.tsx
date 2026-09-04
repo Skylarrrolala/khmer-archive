@@ -24,13 +24,12 @@ import type { Entry } from "@/lib/types";
  * next.config.ts — that allowlist is what keeps the image optimizer from being
  * used as an open proxy for arbitrary URLs.
  *
- * The photo is mounted, not cropped: `object-contain` inside a padded square,
- * so the whole frame the photographer chose survives into the grid. The
- * archive's photos run from 0.67 to 1.50 in aspect — a tall glass of num plae
- * ai and a wide plate of num korng — and the previous 4:3 `object-cover` slice
- * cut the tall ones in half. A square is the frame that wastes least across
- * that spread, and the padding keeps an even margin on all four sides so the
- * result reads as a print on a mount.
+ * The photo runs edge to edge and fills its tile. The archive's photos range
+ * from 0.67 to 1.50 in aspect — a tall glass of num plae ai next to a wide
+ * plate of num korng — so no single frame holds all of them uncropped. A
+ * square crops least across that spread and keeps the grid a regular module,
+ * but it is still a crop: the two portrait photos lose roughly a third, top
+ * and bottom.
  *
  * `photo_url` is nullable by design: some desserts are only remembered, never
  * photographed. That case gets <NoPhotoPanel />, which is a designed state
@@ -57,12 +56,12 @@ export function EntryCard({ entry, index }: { entry: Entry; index: number }) {
   const sourcePending = isPlaceholder(entry.told_by);
 
   return (
-    <li className="group overflow-hidden rounded-xl border border-line bg-card transition-colors hover:border-accent">
+    <li className="group overflow-hidden border border-line bg-card transition-colors hover:border-accent">
       <Link
         href={`/entries/${entry.id}`}
         className="block focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
       >
-        <div className="relative aspect-square bg-accent-soft p-3">
+        <div className="relative aspect-square bg-accent-soft">
           {entry.photo_url ? (
             <Image
               src={entry.photo_url}
@@ -78,14 +77,14 @@ export function EntryCard({ entry, index }: { entry: Entry; index: number }) {
               /* Tells the optimizer how wide the image renders, so it does not
                  ship a 1200px file into a 350px slot. */
               sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 360px"
-              className="object-contain"
+              className="object-cover"
             />
           ) : (
             <NoPhotoPanel />
           )}
         </div>
 
-        <div className="space-y-1 border-t border-line p-4">
+        <div className="space-y-1 border-t border-line p-5">
           {/*
             The card's place in the list, set the way a printed feature numbers
             its sections — the same device as the 01 / 02 / 03 on the fields of
@@ -96,7 +95,10 @@ export function EntryCard({ entry, index }: { entry: Entry; index: number }) {
             a screen reader something that looks like an identifier and is not.
             The surrounding <ul> already carries the count and the position.
           */}
-          <p aria-hidden="true" className="text-xs tabular-nums text-gold">
+          <p
+            aria-hidden="true"
+            className="mb-2 font-display text-4xl italic leading-none text-gold"
+          >
             {String(index + 1).padStart(2, "0")}
           </p>
 
@@ -118,11 +120,11 @@ export function EntryCard({ entry, index }: { entry: Entry; index: number }) {
 
           {/* `gap-y-1` because a badge is taller than the plain text it
               replaces, so a wrapped row would otherwise collide. */}
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 pt-1 text-xs text-muted">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 pt-3 text-xs text-muted">
             {contextPending ? (
               <PendingBadge>Occasion not recorded</PendingBadge>
             ) : (
-              <span className="uppercase tracking-wide">{entry.context}</span>
+              <span className="uppercase tracking-[0.18em]">{entry.context}</span>
             )}
             <span aria-hidden="true" className="text-gold">
               •
