@@ -77,12 +77,12 @@ export default function RootLayout({
           className="h-1 bg-gradient-to-r from-accent via-gold to-accent"
         />
 
-        {/* No `bg-card` here: the masthead is part of the maroon ground, and
-            the cream is saved for the entries themselves. It is a thin rule
-            rather than a block — the archive's own name is the headline of the
-            band below it, so repeating it here at size would say it twice. */}
-        <header className="border-b border-line">
-          <div className="mx-auto flex max-w-6xl flex-wrap items-baseline justify-between gap-x-6 gap-y-2 px-6 py-5">
+        {/* Cream, so it reads as the top of the same sheet the hero is printed
+            on rather than as a separate strip above it. Just the wordmark:
+            there is no nav to carry, and the archive's name is the eyebrow of
+            the band directly below, so repeating it here would say it twice. */}
+        <header className="bg-card">
+          <div className="mx-auto flex max-w-6xl flex-wrap items-baseline gap-x-6 gap-y-2 px-6 py-5">
             {/*
               The wordmark leads with the Khmer, the same order the entry cards
               use: នំ is the thing being archived, and "Num" is the gloss for a
@@ -100,9 +100,6 @@ export default function RootLayout({
                 Num
               </span>
             </Link>
-            <span className="text-[0.7rem] uppercase tracking-[0.22em] text-muted">
-              The Khmer Living Archive
-            </span>
           </div>
         </header>
 

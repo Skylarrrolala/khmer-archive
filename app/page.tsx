@@ -1,7 +1,10 @@
+import Image from "next/image";
+
 import { EntryCard } from "@/components/EntryCard";
 import { SearchBar } from "@/components/SearchBar";
 import { getPublishedEntries } from "@/lib/entries";
 import { isSupabaseConfigured } from "@/lib/env";
+import type { Entry } from "@/lib/types";
 
 /**
  * `force-dynamic` renders this page per request instead of caching it at build
@@ -9,6 +12,9 @@ import { isSupabaseConfigured } from "@/lib/env";
  * should appear immediately rather than after a redeploy.
  */
 export const dynamic = "force-dynamic";
+
+/** An entry that is known to carry a photograph. */
+type Photographed = Entry & { photo_url: string };
 
 /**
  * The public browse + search page. No login required — this whole route talks
@@ -20,10 +26,10 @@ export const dynamic = "force-dynamic";
  * to a single string before use.
  *
  * The page is built as two full-bleed bands rather than one column: a cream
- * sheet carrying the archive's name and the search, and the maroon ground
- * below it carrying the entries. <main> deliberately has no container of its
- * own (see app/layout.tsx) so each band can run edge to edge and centre its
- * own content.
+ * sheet carrying the archive's name, the search and a pair of photographs, and
+ * the maroon ground below it carrying the entries. <main> deliberately has no
+ * container of its own (see app/layout.tsx) so each band can run edge to edge
+ * and centre its own content.
  */
 export default async function BrowsePage({
   searchParams,
@@ -38,48 +44,105 @@ export default async function BrowsePage({
   const entries = await getPublishedEntries(query);
   const count = `${entries.length} ${entries.length === 1 ? "entry" : "entries"}`;
 
+  /*
+   * The hero's photographs are the archive's front matter, not search results,
+   * so they come from the unfiltered archive and do not change as someone
+   * types. With no query in play the browse query already IS the unfiltered
+   * set, so the common path costs nothing extra.
+   */
+  const archive = query ? await getPublishedEntries("") : entries;
+
+  /*
+   * The two *earliest* photographs, not the latest. `getPublishedEntries`
+   * returns newest first, so the latest two would be the same pair of cards
+   * sitting directly underneath the hero. Taken from the end and flipped, so
+   * they read left to right in the order they entered the archive.
+   */
+  const heroPhotos = archive
+    .filter((entry): entry is Photographed => Boolean(entry.photo_url))
+    .slice(-2)
+    .reverse();
+
   return (
     <>
       <section className="relative overflow-hidden bg-card">
-        <div className="relative mx-auto max-w-6xl px-6 py-20 sm:py-28">
+        <div className="relative mx-auto max-w-6xl px-6 pb-20 pt-14 sm:pb-24 sm:pt-16">
           {/*
-            The wordmark at poster size, sunk into the cream. Far under the
-            4.5:1 the palette holds text to — deliberately, because it is not
-            text. `opacity` rather than a `text-accent/8` colour: the alpha form
+            The Latin half of the wordmark at poster size, sunk into the cream.
+            It sits behind the headline on purpose — at this strength it reads
+            as a watermark in the paper rather than as type, so the headline
+            stays the only thing here you actually read.
+
+            `opacity` rather than a `text-accent/6` colour: the alpha form
             compiles to a color-mix() behind an @supports, and its fallback is
-            the accent at full strength, which would drop a solid maroon នំ over
-            the headline. aria-hidden and unselectable so it stays out of the
-            document for a screen reader and out of the way of a cursor.
-
-            Inside the container rather than the full-bleed section, and pinned
-            to the content's right edge, so the whole glyph is on the page — off
-            the section's edge it was clipped down to a few unreadable curves.
-
-            Only from `xl` up. The headline is capped at max-w-3xl, and the
-            clear space beside it is narrower than the glyph until then; below
-            that the នំ crosses the type and reads as a smudge rather than a
-            watermark behind it.
+            the accent at full strength, which would drop a solid maroon word
+            across the headline. aria-hidden and unselectable so it stays out
+            of the document for a screen reader and out of a cursor's way.
           */}
           <span
             aria-hidden="true"
-            className="pointer-events-none absolute right-6 top-1/2 hidden -translate-y-1/2 select-none font-khmer text-[16rem] leading-none text-accent opacity-[0.08] xl:block"
+            className="pointer-events-none absolute left-4 top-16 select-none whitespace-nowrap font-display text-[9rem] italic leading-none tracking-tight text-accent opacity-[0.05] sm:top-20 sm:text-[16rem] lg:text-[26rem]"
           >
-            នំ
+            Num
           </span>
 
-          <p className="text-xs uppercase tracking-[0.22em] text-muted">
-            The Khmer Living Archive
-          </p>
+          {/* The headline takes the width; the standing description sits in a
+              narrow column beside it, dropped to the headline's last line. */}
+          <div className="relative grid gap-x-12 gap-y-8 lg:grid-cols-[minmax(0,1fr)_19rem]">
+            <div>
+              <p className="text-xs uppercase tracking-[0.22em] text-muted">
+                The Khmer Living Archive
+              </p>
 
-          {/* The tagline that used to sit under the masthead, promoted to the
-              headline it always was. Uppercase because the serif carries the
-              weight at this size, and Khmer has no case to lose by it. */}
-          <h1 className="mt-7 max-w-3xl text-4xl uppercase leading-[1.08] tracking-[0.01em] text-accent sm:text-5xl lg:text-6xl">
-            Traditional desserts, remembered and recorded.
-          </h1>
+              {/* The tagline that used to sit under the masthead, promoted to
+                  the headline it always was. Uppercase because the serif
+                  carries the weight at this size, and Khmer has no case to
+                  lose by it. */}
+              <h1 className="mt-6 text-4xl uppercase leading-[1.08] tracking-[0.01em] text-accent sm:text-5xl lg:text-6xl">
+                Traditional desserts, remembered and recorded.
+              </h1>
+            </div>
 
-          <div className="mt-12 max-w-2xl">
-            <SearchBar query={query} />
+            <p className="text-sm leading-relaxed text-muted lg:self-end">
+              Entries are of two kinds: desserts still actively made (with a
+              photo of the real thing), and desserts remembered from earlier in
+              life but no longer made (description only, sometimes with no photo
+              at all).
+            </p>
+          </div>
+
+          {/* Search sits where the reference puts its buttons — bottom left,
+              on the baseline of the photographs beside it. */}
+          <div className="relative mt-14 grid gap-x-12 gap-y-12 lg:mt-20 lg:grid-cols-[minmax(0,1fr)_minmax(0,32rem)] lg:items-end">
+            <div>
+              <SearchBar query={query} />
+            </div>
+
+            {/*
+              Two photographs from the archive, as an overture. `alt=""` and
+              aria-hidden because they are decorative here and nothing else:
+              both entries appear as cards in the grid below with their names,
+              occasion and source attached, so announcing them twice would only
+              make a screen reader repeat itself.
+            */}
+            {heroPhotos.length === 2 ? (
+              <div aria-hidden="true" className="grid grid-cols-2 gap-5">
+                {heroPhotos.map((entry) => (
+                  <div
+                    key={entry.id}
+                    className="relative aspect-[3/4] overflow-hidden bg-accent-soft"
+                  >
+                    <Image
+                      src={entry.photo_url}
+                      alt=""
+                      fill
+                      sizes="(max-width: 1024px) 45vw, 250px"
+                      className="object-cover"
+                    />
+                  </div>
+                ))}
+              </div>
+            ) : null}
           </div>
         </div>
       </section>
