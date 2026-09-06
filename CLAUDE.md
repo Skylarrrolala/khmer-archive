@@ -3,7 +3,7 @@
 ## Goal
 A community archive digitally preserving traditional Khmer desserts (នំ /
 *num*) as made and remembered by the founder's grandparents in
-[PROVINCE — fill in]. Entries mix desserts they still actively make
+Prey Veng. Entries mix desserts they still actively make
 (photographed) and desserts they remember from earlier in life but no
 longer make (description only, sometimes no photo). Capstone project for
 a "Vibe Coding with AI" course. Deployed to Vercel via Next.js.
@@ -78,9 +78,26 @@ minimal.
 - Every entry must credit its source by name, with their permission
   (`told_by` is `not null`).
 - Don't fabricate example entries or placeholder "sample data" that
-  looks real. The rows in `supabase/seed.sql` are prefixed `[SAMPLE]`
-  and must be deleted before the archive is treated as final:
-  `delete from public.entries where told_by like '[SAMPLE%';`
+  looks real.
+- **Never write first-person testimony attributed to a real person
+  unless they actually said it.** Researched facts about a dessert are
+  fine and belong in `description`. A passage like "Grandmother recalls
+  wrapping these before Pchum Ben" is a quote, and a quote that was
+  composed rather than transcribed puts invented words in a real
+  person's mouth in a public archive. If prose arrives already written
+  in that voice — from a document, a generator, anywhere — strip the
+  first-person framing and keep the facts.
+- The seven rows in `supabase/seed.sql` are researched, not sourced.
+  Their `told_by` holds `[SOURCE PENDING …]`, which `lib/placeholders.ts`
+  renders as a "Source pending verification" badge, so the page states
+  the gap instead of claiming a source. Replace each marker with a real
+  person only after actually speaking to them — and add the memory they
+  tell you to `description` at the same time. To see what is still
+  outstanding:
+  `select name_english from public.entries where told_by like '[SOURCE PENDING%';`
+- Photo provenance is not established for every image in
+  `public/entries/`. Before the archive is treated as final, confirm
+  each is a family photograph or licensed and credited.
 
 ## Current sprint focus
 Sprint 1 is complete: browse page, keyword search, and entry detail page,
