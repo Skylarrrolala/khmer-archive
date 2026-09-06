@@ -46,7 +46,7 @@ open **SQL Editor** and run, in this order:
    browse page has something to show. Delete these before the archive is
    treated as final:
    ```sql
-   delete from public.entries where told_by like '[SAMPLE%';
+   select name_english from public.entries where told_by like '[SOURCE PENDING%';
    ```
 
 ### 3. Add your environment variables

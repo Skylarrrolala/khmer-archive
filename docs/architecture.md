@@ -23,7 +23,7 @@ browser  ->  app/page.tsx  ->  lib/entries.ts  ->  lib/supabase/server.ts  ->  P
 | File | What it does |
 | --- | --- |
 | `supabase/migrations/0001_init.sql` | The whole schema: the `entry_status` enum, the `entries` table, its indexes, every RLS policy, and the `entry-photos` storage bucket with its policies. Run once in the Supabase SQL editor. |
-| `supabase/seed.sql` | Three dummy entries so Sprint 1 has something to render. Every one is prefixed `[SAMPLE]` so it can never be mistaken for a real family memory. |
+| `supabase/seed.sql` | The seven desserts, with ingredients, method, region and notes folded into `description`. The content is researched, not family testimony: every `told_by` holds `[SOURCE PENDING …]`, which the UI renders as a "Source pending verification" badge, so nothing on the page claims a source it does not have. Re-running the file clears the rows it owns (`contributor_id is null`) first, so it cannot double up. |
 
 ### App plumbing
 
