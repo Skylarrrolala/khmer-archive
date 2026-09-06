@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 
 import { signIn } from "@/app/(auth)/actions";
 import { AuthForm } from "@/components/AuthForm";
+import { safeInternalPath } from "@/lib/auth";
 
 export const metadata: Metadata = {
   title: "Sign in — The Khmer Living Archive",
@@ -19,7 +20,7 @@ export const metadata: Metadata = {
  *
  * `error` is rendered as text inside JSX, so React escapes it — a crafted
  * `?error=<script>` is displayed, not executed. `next` is never trusted here
- * either: it is passed back into the form and re-checked by `safeNext` in the
+ * either: it is passed back into the form and re-checked by `safeInternalPath` in the
  * action before any redirect uses it.
  */
 export default async function LoginPage({
@@ -35,7 +36,7 @@ export default async function LoginPage({
   const first = (v: string | string[] | undefined) =>
     (Array.isArray(v) ? v[0] : v) ?? "";
 
-  const next = first(params.next) || "/";
+  const next = safeInternalPath(params.next);
   const error = first(params.error) || undefined;
   const notice =
     first(params.pending) === "confirm"

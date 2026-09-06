@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 
 import { signUp } from "@/app/(auth)/actions";
 import { AuthForm } from "@/components/AuthForm";
+import { safeInternalPath } from "@/lib/auth";
 
 export const metadata: Metadata = {
   title: "Create an account — The Khmer Living Archive",
@@ -27,7 +28,7 @@ export default async function SignUpPage({
     <AuthForm
       mode="signup"
       action={signUp}
-      next={first(params.next) || "/"}
+      next={safeInternalPath(params.next)}
       error={first(params.error) || undefined}
     />
   );

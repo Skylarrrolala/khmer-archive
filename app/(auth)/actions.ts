@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
+import { safeInternalPath } from "@/lib/auth";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 /**
@@ -23,22 +24,6 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
  * session cookies through the client built in lib/supabase/server.ts.
  */
 
-/** Where to send someone after they authenticate, once it is known to be safe. */
-function safeNext(raw: FormDataEntryValue | null): string {
-  const next = typeof raw === "string" ? raw : "";
-
-  /*
-   * Only same-site paths. A `next` of "https://evil.example/login" would
-   * otherwise turn this form into an open redirect — a phishing primitive that
-   * borrows the archive's domain to bounce someone somewhere else. Requiring a
-   * single leading slash, and rejecting "//host" and "/\host", keeps the
-   * destination inside this app.
-   */
-  if (!next.startsWith("/")) return "/";
-  if (next.startsWith("//") || next.startsWith("/\\")) return "/";
-  return next;
-}
-
 /** Bounce back to a form with a message a person can act on. */
 function backToForm(path: string, message: string, next: string): never {
   const params = new URLSearchParams({ error: message });
@@ -49,7 +34,7 @@ function backToForm(path: string, message: string, next: string): never {
 export async function signIn(formData: FormData) {
   const email = String(formData.get("email") ?? "").trim();
   const password = String(formData.get("password") ?? "");
-  const next = safeNext(formData.get("next"));
+  const next = safeInternalPath(String(formData.get("next") ?? ""));
 
   if (!email || !password) {
     backToForm("/login", "Enter your email address and password.", next);
@@ -76,7 +61,7 @@ export async function signIn(formData: FormData) {
 export async function signUp(formData: FormData) {
   const email = String(formData.get("email") ?? "").trim();
   const password = String(formData.get("password") ?? "");
-  const next = safeNext(formData.get("next"));
+  const next = safeInternalPath(String(formData.get("next") ?? ""));
 
   if (!email || !password) {
     backToForm("/signup", "Enter an email address and a password.", next);

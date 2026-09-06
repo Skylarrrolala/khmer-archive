@@ -41,6 +41,20 @@ export async function AccountNav() {
 
   return (
     <div className="flex flex-wrap items-baseline gap-x-5 gap-y-1">
+      <Link
+        href="/submit"
+        className="text-[0.7rem] uppercase tracking-[0.22em] text-accent transition-opacity hover:opacity-70"
+      >
+        Submit
+      </Link>
+
+      <Link
+        href="/my-entries"
+        className="text-[0.7rem] uppercase tracking-[0.22em] text-muted transition-colors hover:text-accent"
+      >
+        Your entries
+      </Link>
+
       {/* The email is the only identifier a contributor has until profiles
           exist, so it is what the archive greets them with. `break-all` because
           a long address must not push the masthead wider than the page. */}

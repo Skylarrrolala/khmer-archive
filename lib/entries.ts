@@ -2,8 +2,15 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { Entry } from "@/lib/types";
 
 /**
- * Every read the public pages make goes through this file, so there is exactly
- * one place to check when asking "can an unpublished entry leak?".
+ * Every query against `public.entries` goes through this file, so there is
+ * exactly one place to check when asking "can an unpublished entry leak?".
+ *
+ * Sprint 2 adds a contributor's own reads and the one write. They are here for
+ * the same reason the public reads are: a single auditable surface. Note what
+ * none of these functions do — none of them checks ownership in JavaScript.
+ * The RLS policies in supabase/migrations/0001_init.sql do that, inside
+ * Postgres, on every statement. The filters below say what this app is asking
+ * for; the policies decide what it is allowed to have.
  */
 
 /**
@@ -91,6 +98,79 @@ export async function getPublishedEntry(id: string): Promise<Entry | null> {
     if (error.code === "22P02") return null;
     throw new Error(`Could not load entry: ${error.message}`);
   }
+
+  return data;
+}
+
+/**
+ * Every entry the logged-in contributor has submitted, whatever its status.
+ *
+ * The `contributor_id` filter is what makes this "mine" rather than
+ * "everything I am allowed to see". Two RLS policies grant SELECT —
+ * "published entries are readable by everyone" and "contributors can read
+ * their own entries" — and Postgres ORs them together, so without the filter
+ * this would return the contributor's rows *plus* the entire published
+ * archive.
+ *
+ * Filtering on status instead would be wrong in a subtler way: it would drop a
+ * contributor's own entry the moment a reviewer approved it, which is the one
+ * moment they most want to see it.
+ *
+ * Passing the id in is not the security check. A caller who lied about it
+ * would get nothing back, because the policies still limit the rows Postgres
+ * is willing to release to the session that asked.
+ */
+export async function getMyEntries(contributorId: string): Promise<Entry[]> {
+  const supabase = await createSupabaseServerClient();
+
+  const { data, error } = await supabase
+    .from("entries")
+    .select("*")
+    .eq("contributor_id", contributorId)
+    .order("created_at", { ascending: false });
+
+  if (error) throw new Error(`Could not load your entries: ${error.message}`);
+
+  return data ?? [];
+}
+
+/**
+ * Creates one entry, owned by the contributor who submitted it.
+ *
+ * `contributor_id` and `status` are set here rather than taken from the form.
+ * That is belt and braces: the insert policy's `with check` already refuses
+ * any row whose contributor_id is not `auth.uid()` or whose status is not
+ * 'pending', so a forged field would be rejected by Postgres. Setting them
+ * server-side means the request never gets that far, and a reader of this
+ * function can see that a contributor cannot self-publish.
+ */
+export async function createEntry(input: {
+  contributorId: string;
+  nameKhmer: string;
+  nameEnglish: string;
+  toldBy: string;
+  context: string;
+  description: string;
+  photoUrl: string | null;
+}): Promise<Entry> {
+  const supabase = await createSupabaseServerClient();
+
+  const { data, error } = await supabase
+    .from("entries")
+    .insert({
+      contributor_id: input.contributorId,
+      name_khmer: input.nameKhmer,
+      name_english: input.nameEnglish,
+      told_by: input.toldBy,
+      context: input.context,
+      description: input.description,
+      photo_url: input.photoUrl,
+      status: "pending",
+    })
+    .select()
+    .single();
+
+  if (error) throw new Error(`Could not save the entry: ${error.message}`);
 
   return data;
 }
