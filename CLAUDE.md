@@ -107,7 +107,11 @@ entries" view. No review-queue UI yet; that is Sprint 3.
 
 ## Files AI can touch this session
 Sprint 2 will need: `/app/(auth)`, `/app/submit`, `/app/my-entries`,
-`/lib/supabase/client.ts`, `middleware.ts`, and `/components/*`.
+`/lib/auth.ts`, `proxy.ts`, and `/components/*`.
+Note two corrections to the original list: `middleware.ts` is deprecated in
+Next.js 16 and renamed to `proxy.ts`, and `/lib/supabase/client.ts` (a
+browser client) turned out not to be needed — the auth forms are Server
+Actions, so nothing authenticates from the browser.
 Do not modify `supabase/migrations/0001_init.sql` in place — add a new
 numbered migration instead, so an already-deployed database can catch up.
 

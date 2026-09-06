@@ -1,0 +1,122 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+
+import { createSupabaseServerClient } from "@/lib/supabase/server";
+
+/**
+ * Sign-up, log-in and log-out, as Server Actions.
+ *
+ * These are plain `<form action={...}>` handlers with no client component and
+ * no React state anywhere — the same decision SearchBar makes, for the same
+ * reasons: the whole flow works with JavaScript disabled, and there is no
+ * second copy of the validation rules living in the browser.
+ *
+ * The cost of that choice is error reporting. Without `useActionState` there is
+ * no in-memory place to put a message, so a failure redirects back to the form
+ * with `?error=` and the page renders it. That is why every error string here
+ * is written for a human to read.
+ *
+ * Only a Server Action or a Route Handler may write cookies in the App Router,
+ * which is precisely why sign-in lives here: `signInWithPassword` sets the
+ * session cookies through the client built in lib/supabase/server.ts.
+ */
+
+/** Where to send someone after they authenticate, once it is known to be safe. */
+function safeNext(raw: FormDataEntryValue | null): string {
+  const next = typeof raw === "string" ? raw : "";
+
+  /*
+   * Only same-site paths. A `next` of "https://evil.example/login" would
+   * otherwise turn this form into an open redirect — a phishing primitive that
+   * borrows the archive's domain to bounce someone somewhere else. Requiring a
+   * single leading slash, and rejecting "//host" and "/\host", keeps the
+   * destination inside this app.
+   */
+  if (!next.startsWith("/")) return "/";
+  if (next.startsWith("//") || next.startsWith("/\\")) return "/";
+  return next;
+}
+
+/** Bounce back to a form with a message a person can act on. */
+function backToForm(path: string, message: string, next: string): never {
+  const params = new URLSearchParams({ error: message });
+  if (next !== "/") params.set("next", next);
+  redirect(`${path}?${params.toString()}`);
+}
+
+export async function signIn(formData: FormData) {
+  const email = String(formData.get("email") ?? "").trim();
+  const password = String(formData.get("password") ?? "");
+  const next = safeNext(formData.get("next"));
+
+  if (!email || !password) {
+    backToForm("/login", "Enter your email address and password.", next);
+  }
+
+  const supabase = await createSupabaseServerClient();
+  const { error } = await supabase.auth.signInWithPassword({ email, password });
+
+  if (error) {
+    /*
+     * Supabase's own message for a bad email and a bad password is the same
+     * ("Invalid login credentials"), and it is passed through unchanged on
+     * purpose. A friendlier message that distinguished the two would tell an
+     * attacker which email addresses have accounts in this archive.
+     */
+    backToForm("/login", error.message, next);
+  }
+
+  // The header renders the signed-in state, and it is on every route.
+  revalidatePath("/", "layout");
+  redirect(next);
+}
+
+export async function signUp(formData: FormData) {
+  const email = String(formData.get("email") ?? "").trim();
+  const password = String(formData.get("password") ?? "");
+  const next = safeNext(formData.get("next"));
+
+  if (!email || !password) {
+    backToForm("/signup", "Enter an email address and a password.", next);
+  }
+
+  /*
+   * Checked here as well as in the `minlength` attribute on the input, because
+   * the attribute is a convenience for the browser and disappears the moment
+   * someone posts the form another way. Supabase's own floor is six; eight is
+   * this project's.
+   */
+  if (password.length < 8) {
+    backToForm("/signup", "Use a password of at least 8 characters.", next);
+  }
+
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.auth.signUp({ email, password });
+
+  if (error) {
+    backToForm("/signup", error.message, next);
+  }
+
+  /*
+   * A Supabase project with email confirmation switched on returns a user but
+   * no session: the account exists and is not usable until the link in the
+   * email is clicked. Saying so is better than redirecting to a page that
+   * behaves as though nobody is logged in, which is what happens otherwise.
+   */
+  if (!data.session) {
+    redirect("/login?pending=confirm");
+  }
+
+  revalidatePath("/", "layout");
+  redirect(next);
+}
+
+export async function signOut() {
+  const supabase = await createSupabaseServerClient();
+  await supabase.auth.signOut();
+
+  revalidatePath("/", "layout");
+  redirect("/");
+}

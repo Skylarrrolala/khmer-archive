@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Fraunces, Kantumruy_Pro, Noto_Serif_Khmer } from "next/font/google";
 import Link from "next/link";
 
+import { AccountNav } from "@/components/AccountNav";
+
 import "./globals.css";
 
 /*
@@ -78,11 +80,11 @@ export default function RootLayout({
         />
 
         {/* Cream, so it reads as the top of the same sheet the hero is printed
-            on rather than as a separate strip above it. Just the wordmark:
-            there is no nav to carry, and the archive's name is the eyebrow of
-            the band directly below, so repeating it here would say it twice. */}
+            on rather than as a separate strip above it. The archive's name is
+            the eyebrow of the band directly below, so it is not repeated here —
+            the right-hand side carries the account state instead. */}
         <header className="bg-card">
-          <div className="mx-auto flex max-w-6xl flex-wrap items-baseline gap-x-6 gap-y-2 px-6 py-5">
+          <div className="mx-auto flex max-w-6xl flex-wrap items-baseline justify-between gap-x-6 gap-y-3 px-6 py-5">
             {/*
               The wordmark leads with the Khmer, the same order the entry cards
               use: នំ is the thing being archived, and "Num" is the gloss for a
@@ -100,6 +102,8 @@ export default function RootLayout({
                 Num
               </span>
             </Link>
+
+            <AccountNav />
           </div>
         </header>
 
