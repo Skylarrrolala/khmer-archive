@@ -27,15 +27,17 @@ export const dynamic = "force-dynamic";
 export default async function MyEntriesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ submitted?: string | string[] }>;
+  searchParams: Promise<{
+    submitted?: string | string[];
+    updated?: string | string[];
+    deleted?: string | string[];
+  }>;
 }) {
   const user = await requireUser("/my-entries");
   const entries = await getMyEntries(user.id);
 
   const params = await searchParams;
-  const justSubmitted =
-    (Array.isArray(params.submitted) ? params.submitted[0] : params.submitted) ===
-    "1";
+  const notice = noticeFor(params);
 
   const count = `${entries.length} ${entries.length === 1 ? "entry" : "entries"}`;
 
@@ -58,9 +60,9 @@ export default async function MyEntriesPage({
         </Link>
       </div>
 
-      {justSubmitted ? (
+      {notice ? (
         <p className="mt-8 border border-line bg-accent-soft px-4 py-3 text-sm text-ink">
-          Thank you — your entry was received and is waiting for review.
+          {notice}
         </p>
       ) : null}
 
@@ -136,9 +138,59 @@ function MyEntryRow({ entry }: { entry: Entry }) {
         </p>
       </div>
 
-      <StatusBadge status={entry.status} />
+      <div className="flex shrink-0 flex-col items-start gap-3 sm:items-end">
+        <StatusBadge status={entry.status} />
+
+        {/* Shown for every row, including published ones: editing a published
+            entry is allowed and returns it to the review queue, which the edit
+            page says before the form. Hiding these links would not protect
+            anything either way — the update and delete policies are what
+            refuse a row that is not yours. */}
+        <p className="flex gap-4 text-[0.65rem] uppercase tracking-[0.15em]">
+          <Link
+            href={`/my-entries/${entry.id}/edit`}
+            className="text-accent hover:underline"
+          >
+            Edit
+          </Link>
+          <Link
+            href={`/my-entries/${entry.id}/delete`}
+            className="text-muted hover:text-accent hover:underline"
+          >
+            Delete
+          </Link>
+        </p>
+      </div>
     </li>
   );
+}
+
+/**
+ * The one-line result of whatever the contributor just did, or null.
+ *
+ * The three actions redirect back here with a flag rather than rendering their
+ * own confirmation page, so the answer to "did that work?" is always in the
+ * same place, next to the list it changed.
+ */
+function noticeFor(params: {
+  submitted?: string | string[];
+  updated?: string | string[];
+  deleted?: string | string[];
+}): string | null {
+  const flag = (value: string | string[] | undefined) =>
+    (Array.isArray(value) ? value[0] : value) === "1";
+
+  if (flag(params.submitted)) {
+    return "Thank you — your entry was received and is waiting for review.";
+  }
+  if (flag(params.updated)) {
+    return "Your changes were saved. The entry is back in the review queue.";
+  }
+  if (flag(params.deleted)) {
+    return "The entry was deleted.";
+  }
+
+  return null;
 }
 
 /**

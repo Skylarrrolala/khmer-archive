@@ -174,3 +174,159 @@ export async function createEntry(input: {
 
   return data;
 }
+
+/**
+ * One of the contributor's own entries, whatever its status.
+ *
+ * The counterpart to `getPublishedEntry`, and the difference between the two
+ * is the whole of Sprint 2's ownership rule. That one adds
+ * `.eq("status","published")` so the public can only reach published rows;
+ * this one does not, because a contributor editing their pending submission
+ * needs to load a pending row.
+ *
+ * What keeps that from becoming a hole is that nothing here checks ownership
+ * either. Both SELECT policies apply to this query — Postgres ORs them — so
+ * the rows it can return are "published" plus "mine". The `contributor_id`
+ * filter narrows that to "mine", and a contributor asking for an id that is
+ * pending and someone else's gets null: the row is outside both policies, so
+ * Postgres never releases it. The edit page turns that null into a 404, which
+ * is the same 404 a nonexistent id gets.
+ */
+export async function getMyEntry(
+  id: string,
+  contributorId: string,
+): Promise<Entry | null> {
+  const supabase = await createSupabaseServerClient();
+
+  const { data, error } = await supabase
+    .from("entries")
+    .select("*")
+    .eq("id", id)
+    .eq("contributor_id", contributorId)
+    .maybeSingle();
+
+  // 22P02 is Postgres rejecting a malformed uuid — /my-entries/nonsense/edit
+  // should be a 404, not a crash. Same handling as the public detail page.
+  if (error) {
+    if (error.code === "22P02") return null;
+    throw new Error(`Could not load your entry: ${error.message}`);
+  }
+
+  return data;
+}
+
+/**
+ * A Postgres permission denial, as opposed to a query that simply matched
+ * nothing.
+ *
+ * 42501 is `insufficient_privilege` — what Postgres raises when a row would
+ * violate a policy's `with check`, e.g. an update that tried to leave the
+ * entry published. It is worth telling apart from the zero-row case: one means
+ * "you may not write that", the other means "there is no such row of yours",
+ * and a contributor shown the wrong one of those goes looking in the wrong
+ * place.
+ */
+function isPermissionDenied(code?: string): boolean {
+  return code === "42501";
+}
+
+/**
+ * Rewrites one entry and sends it back for review.
+ *
+ * There is no ownership check in this function, and that is the point. The
+ * only thing standing between this update and somebody else's row is the
+ * policy `auth.uid() = contributor_id` in
+ * supabase/migrations/0001_init.sql, applied by Postgres to the statement
+ * itself. Filtering on `contributor_id` here as well would read like a second
+ * lock while adding none — and would quietly teach a later reader that the
+ * app is where ownership is decided. Ask for the row by id; let the database
+ * say whether it is yours.
+ *
+ * `status: 'pending'` is likewise not a decision made here — it is the only
+ * value the policy's `with check` accepts. An edit therefore returns the entry
+ * to the review queue, which is exactly what the migration's comment says it
+ * should. `contributor_id` is never written at all: the safest column is the
+ * one no statement touches.
+ *
+ * Returns null when no row matched — someone else's entry, or one already
+ * deleted. Those are indistinguishable from out here, deliberately.
+ */
+export async function updateEntry(
+  id: string,
+  fields: {
+    nameKhmer: string;
+    nameEnglish: string;
+    toldBy: string;
+    context: string;
+    description: string;
+    photoUrl: string | null;
+  },
+): Promise<Entry | null> {
+  const supabase = await createSupabaseServerClient();
+
+  const { data, error } = await supabase
+    .from("entries")
+    .update({
+      name_khmer: fields.nameKhmer,
+      name_english: fields.nameEnglish,
+      told_by: fields.toldBy,
+      context: fields.context,
+      description: fields.description,
+      photo_url: fields.photoUrl,
+      status: "pending",
+    })
+    .eq("id", id)
+    .select()
+    .maybeSingle();
+
+  if (error) {
+    if (error.code === "22P02") return null;
+    if (isPermissionDenied(error.code)) {
+      throw new Error(
+        "That change was refused: an entry can only be edited by the " +
+          "contributor who submitted it, and an edited entry has to go back " +
+          "for review.",
+      );
+    }
+    throw new Error(`Could not save your changes: ${error.message}`);
+  }
+
+  return data;
+}
+
+/**
+ * Deletes one entry.
+ *
+ * Ownership is the delete policy's job, for the same reason as above: one
+ * policy, `auth.uid() = contributor_id`, enforced inside Postgres on the
+ * statement. A contributor asking for an id that is not theirs deletes
+ * nothing, and gets the same null as one asking for an id that no longer
+ * exists.
+ *
+ * The deleted row comes back because it is the last chance to read its
+ * `photo_url` — afterwards there is nothing left to ask, and the file would
+ * stay in Storage with nothing pointing at it.
+ */
+export async function deleteEntry(id: string): Promise<Entry | null> {
+  const supabase = await createSupabaseServerClient();
+
+  const { data, error } = await supabase
+    .from("entries")
+    .delete()
+    .eq("id", id)
+    .select()
+    .maybeSingle();
+
+  if (error) {
+    if (error.code === "22P02") return null;
+    if (isPermissionDenied(error.code)) {
+      throw new Error(
+        "That entry could not be deleted: an entry can only be deleted by " +
+          "the contributor who submitted it.",
+      );
+    }
+    throw new Error(`Could not delete the entry: ${error.message}`);
+  }
+
+  return data;
+}
