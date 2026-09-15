@@ -181,8 +181,20 @@ policy above, and shipping it to the browser would undo all of it.
 
 ### Proof that it works
 
-These policies were exercised against a local Postgres before being committed.
-With two test contributors A and B:
+`scripts/verify-rls.sh` exercises every policy below against the real Supabase
+project and prints a pass or fail line for each. It talks to PostgREST with a
+real access token rather than clicking through the app, which is the only way
+the claim means anything: a rule that lived in React would pass a UI test and
+fail this one.
+
+    ./scripts/verify-rls.sh
+
+Read the header before running it — it needs "Confirm email" turned off for the
+length of the run, and leaves one throwaway account to delete by hand.
+
+Last run: 14 of 14 checks passed against the live project, with the seven seed
+entries intact afterwards. The same policies were exercised against a local
+Postgres before being committed, with two test contributors A and B:
 
 | Attempt | Result |
 | --- | --- |
@@ -199,5 +211,8 @@ With two test contributors A and B:
 | B uploads into their own folder | succeeds |
 | A deletes their own entry | succeeds |
 
-You can re-run this yourself against the real project once Sprint 2 gives you
-two accounts to log in with.
+The script covers the same ground with one account rather than two: a seed row
+stands in for "an entry that is not mine", since its `contributor_id` is null
+and `auth.uid() = contributor_id` fails the `USING` clause exactly as another
+contributor's row would. The forged-`contributor_id` insert covers the
+cross-contributor case directly.
