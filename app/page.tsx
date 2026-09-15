@@ -186,8 +186,8 @@ function SetupNotice() {
         </h2>
         <p className="text-sm text-muted">
           Copy <code>.env.example</code> to <code>.env.local</code>, fill in the
-          project URL and anon key from your Supabase dashboard, then restart
-          the dev server. See the README for the full setup steps.
+          project URL and publishable key from your Supabase dashboard, then
+          restart the dev server. See the README for the full setup steps.
         </p>
       </div>
     </section>

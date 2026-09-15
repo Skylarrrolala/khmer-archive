@@ -29,7 +29,7 @@ browser  ->  app/page.tsx  ->  lib/entries.ts  ->  lib/supabase/server.ts  ->  P
 
 | File | What it does |
 | --- | --- |
-| `lib/env.ts` | Reads `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY`. Reads them inside a function, not at import time, so `next build` still succeeds on a machine with no `.env.local`. |
+| `lib/env.ts` | Reads `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`. Reads them inside a function, not at import time, so `next build` still succeeds on a machine with no `.env.local`. |
 | `proxy.ts` | Refreshes the Supabase session on each request. Named `proxy.ts`, not `middleware.ts` — that convention is deprecated in Next.js 16 and renamed. It is **not** an auth gate: Next's own guidance is that a proxy is an optimistic check only, so there is no redirect logic in it. Deleting it would log people out early; it would not expose a row. |
 | `lib/auth.ts` | The auth half of the data access layer. `getCurrentUser()` uses `getUser()` (which revalidates the token with Supabase) rather than `getSession()` (which just trusts the cookie), memoised with React `cache`. `requireUser()` redirects to `/login` for pages that make no sense signed out. |
 | `app/(auth)/actions.ts` | Sign-up, sign-in and sign-out as Server Actions. Only actions and route handlers may write cookies, which is why session creation lives here. `safeNext()` rejects any `next` that is not a same-site path, so the login form cannot be used as an open redirect. Supabase's identical error for a bad email and a bad password is passed through unchanged, so the form cannot be used to enumerate accounts. |

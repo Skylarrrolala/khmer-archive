@@ -39,10 +39,10 @@ export async function proxy(request: NextRequest) {
   // rather than crash on every single request, including static assets.
   if (!isSupabaseConfigured()) return NextResponse.next({ request });
 
-  const { url, anonKey } = supabaseEnv();
+  const { url, publishableKey } = supabaseEnv();
   let response = NextResponse.next({ request });
 
-  const supabase = createServerClient(url, anonKey, {
+  const supabase = createServerClient(url, publishableKey, {
     cookies: {
       getAll() {
         return request.cookies.getAll();
