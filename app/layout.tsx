@@ -4,6 +4,7 @@ import Link from "next/link";
 import { ViewTransition } from "react";
 
 import { AccountNav } from "@/components/AccountNav";
+import { LandingMarker } from "@/components/LandingMarker";
 
 import "./globals.css";
 
@@ -77,8 +78,12 @@ export default function RootLayout({
             measures 4.6:1, too close to the floor to carry paragraphs. */}
         <div
           aria-hidden="true"
-          className="h-1 bg-gradient-to-r from-accent via-gold to-accent"
+          className="land-line h-1 bg-gradient-to-r from-accent via-gold to-accent"
         />
+
+        {/* Ends the landing sequence (the `land*` rules in globals.css) once
+            it has played, so it happens on a first load only. */}
+        <LandingMarker />
 
         {/* Cream, so it reads as the top of the same sheet the hero is printed
             on rather than as a separate strip above it. The archive's name is

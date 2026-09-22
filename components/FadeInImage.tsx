@@ -60,7 +60,7 @@ export function FadeInImage({
       }}
       className={[
         className,
-        "transition-opacity duration-500",
+        "transition-opacity duration-(--motion-photo)",
         waiting && "opacity-0",
       ]
         .filter(Boolean)

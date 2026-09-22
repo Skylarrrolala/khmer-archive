@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { CSSProperties } from "react";
 
 import { EntryPhotoTransition } from "@/components/EntryPhotoTransition";
 import { FadeInImage } from "@/components/FadeInImage";
@@ -48,16 +49,25 @@ import type { Entry } from "@/lib/types";
  * "Khmer name pending" would place a status message in the document outline,
  * where a screen reader expects the name of the dessert.
  *
- * `index` is the card's position in the list it is being rendered into, and it
- * is used for nothing but the printed number in the corner of the text block.
+ * `index` is the card's position in the list it is being rendered into. It is
+ * used for two presentational things only: the printed number in the corner of
+ * the text block, and the card's turn in the landing sequence (`--i`, read by
+ * the `land` rules in app/globals.css). The cards follow the hero, which ends
+ * at 6. Only the first six are staggered — the rest sit below the fold and
+ * would otherwise stretch the sequence out for nobody.
  */
 export function EntryCard({ entry, index }: { entry: Entry; index: number }) {
   const khmerPending = isPlaceholder(entry.name_khmer);
   const contextPending = isPlaceholder(entry.context);
   const sourcePending = isPlaceholder(entry.told_by);
 
+  const landingTurn = { "--i": 7 + Math.min(index, 5) } as CSSProperties;
+
   return (
-    <li className="group overflow-hidden border border-line bg-card transition-colors hover:border-accent">
+    <li
+      className="land group overflow-hidden border border-line bg-card transition-colors hover:border-accent"
+      style={landingTurn}
+    >
       <Link
         href={`/entries/${entry.id}`}
         className="block focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"

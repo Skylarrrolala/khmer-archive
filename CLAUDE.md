@@ -48,9 +48,14 @@ preemptively "while you're in there."
 > (`components/FadeInImage.tsx`), and page transitions through React's
 > `<ViewTransition>` — the page rising in, and a dessert's photo carried
 > from its card to its detail page (`app/layout.tsx`,
-> `components/EntryPhotoTransition.tsx`). Every piece is switched off under
-> `prefers-reduced-motion`, and no dependency was added. That is the whole
-> of the exception. Anything further — directional slides, the unused
+> `components/EntryPhotoTransition.tsx`) — and, asked for the same day, a
+> landing sequence that plays on a first load only: the gold hairline
+> drawing in and the home page unfolding piece by piece (the `land*` rules
+> in `app/globals.css`, `components/LandingMarker.tsx`). The founder then
+> asked for the whole of it to run slower, to feel calm and elegant; every
+> duration lives in the motion block of `app/globals.css`. Every piece is
+> switched off under `prefers-reduced-motion`, and no dependency was added.
+> That is the whole of the exception. Anything further — directional slides, the unused
 > `components/DriftWall.tsx`, new effects — is still under this rule: name
 > it and ask first.
 

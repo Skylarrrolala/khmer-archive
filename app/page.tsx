@@ -80,7 +80,7 @@ export default async function BrowsePage({
           */}
           <span
             aria-hidden="true"
-            className="pointer-events-none absolute left-4 top-16 select-none whitespace-nowrap font-display text-[9rem] italic leading-none tracking-tight text-accent opacity-[0.05] sm:top-20 sm:text-[16rem] lg:text-[26rem]"
+            className="land [--i:0] pointer-events-none absolute left-4 top-16 select-none whitespace-nowrap font-display text-[9rem] italic leading-none tracking-tight text-accent opacity-[0.05] sm:top-20 sm:text-[16rem] lg:text-[26rem]"
           >
             Num
           </span>
@@ -89,7 +89,7 @@ export default async function BrowsePage({
               narrow column beside it, dropped to the headline's last line. */}
           <div className="relative grid gap-x-12 gap-y-8 lg:grid-cols-[minmax(0,1fr)_19rem]">
             <div>
-              <p className="text-xs uppercase tracking-[0.22em] text-muted">
+              <p className="land [--i:1] text-xs uppercase tracking-[0.22em] text-muted">
                 The Khmer Living Archive
               </p>
 
@@ -97,12 +97,12 @@ export default async function BrowsePage({
                   the headline it always was. Uppercase because the serif
                   carries the weight at this size, and Khmer has no case to
                   lose by it. */}
-              <h1 className="mt-6 text-4xl uppercase leading-[1.08] tracking-[0.01em] text-accent sm:text-5xl lg:text-6xl">
+              <h1 className="land [--i:2] mt-6 text-4xl uppercase leading-[1.08] tracking-[0.01em] text-accent sm:text-5xl lg:text-6xl">
                 Traditional desserts, remembered and recorded.
               </h1>
             </div>
 
-            <p className="text-sm leading-relaxed text-muted lg:self-end">
+            <p className="land [--i:3] text-sm leading-relaxed text-muted lg:self-end">
               Entries are of two kinds: desserts still actively made (with a
               photo of the real thing), and desserts remembered from earlier in
               life but no longer made (description only, sometimes with no photo
@@ -113,7 +113,7 @@ export default async function BrowsePage({
           {/* Search sits where the reference puts its buttons — bottom left,
               on the baseline of the photographs beside it. */}
           <div className="relative mt-14 grid gap-x-12 gap-y-12 lg:mt-20 lg:grid-cols-[minmax(0,1fr)_minmax(0,32rem)] lg:items-end">
-            <div>
+            <div className="land [--i:4]">
               <SearchBar query={query} />
             </div>
 
@@ -126,10 +126,13 @@ export default async function BrowsePage({
             */}
             {heroPhotos.length === 2 ? (
               <div aria-hidden="true" className="grid grid-cols-2 gap-5">
-                {heroPhotos.map((entry) => (
+                {heroPhotos.map((entry, i) => (
                   <div
                     key={entry.id}
-                    className="relative aspect-[3/4] overflow-hidden bg-accent-soft"
+                    /* Unveiled alongside the search, the second a beat after
+                       the first. Both class names are written out in full so
+                       Tailwind can find them. */
+                    className={`land-photo ${i === 0 ? "[--i:4]" : "[--i:5]"} relative aspect-[3/4] overflow-hidden bg-accent-soft`}
                   >
                     <FadeInImage
                       src={entry.photo_url}
@@ -147,7 +150,7 @@ export default async function BrowsePage({
       </section>
 
       <section className="mx-auto max-w-6xl px-6 py-16">
-        <p className="text-xs uppercase tracking-[0.22em] text-muted">
+        <p className="land [--i:6] text-xs uppercase tracking-[0.22em] text-muted">
           {query ? `${count} matching “${query}”` : `${count} in the archive`}
         </p>
 

@@ -114,29 +114,42 @@
   /*
    * Motion. Every `transition-*` utility on the site takes its length and its
    * curve from these two, so the hover fades on cards, links, fields and
-   * buttons are tuned here rather than in a hundred class lists — the same
-   * trick as `--spacing` above.
+   * buttons are tuned in one place rather than in a hundred class lists — the
+   * same trick as `--spacing` above. Both point at the motion block below.
    *
-   * Tailwind's defaults are 150ms on an ease-in-out curve. At 150ms a colour
-   * change reads as a flicker rather than a fade, and ease-in-out starts
-   * slowly, so the change seems to lag behind the pointer. 250ms on an
-   * ease-out curve responds at once and then settles, which is what reads as
-   * smooth. Anything that names its own `duration-*` (the photo fade-in, for
-   * one) still takes this curve, and so do the page transitions at the end of
-   * this file — `--ease-settle` is declared once, just below.
+   * Tailwind's defaults are 150ms on an ease-in-out curve: a colour change
+   * reads as a flicker, and ease-in-out starts slowly, so it seems to lag
+   * behind the pointer.
    */
-  --default-transition-duration: 250ms;
+  --default-transition-duration: var(--motion-hover);
   --default-transition-timing-function: var(--ease-settle);
 }
 
 /*
- * The site's one easing curve, as a plain custom property so both the theme
- * above and the view-transition rules below can read it. (`@theme inline`
- * substitutes its values into utilities rather than declaring them, so a
- * theme token alone would not be visible to hand-written CSS.)
+ * ── Motion ─────────────────────────────────────────────────────────────
+ * Every duration and the one easing curve on the site, in one place. These
+ * are plain custom properties rather than theme tokens because `@theme
+ * inline` substitutes its values into utilities instead of declaring them, so
+ * a theme token would not be visible to the hand-written animation rules at
+ * the end of this file.
+ *
+ * The pace is deliberately unhurried — the archive should feel like turning
+ * the pages of a good book, not like an app. The curve is an ease-out that
+ * starts promptly and spends most of its time settling, which is what reads
+ * as calm rather than slow. To make everything faster or slower, change the
+ * numbers here and nowhere else.
  */
 :root {
-  --ease-settle: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-settle: cubic-bezier(0.25, 1, 0.5, 1);
+
+  --motion-hover: 400ms; /* colour and opacity changes on hover and focus */
+  --motion-photo: 1000ms; /* a photo fading in once it has loaded */
+  --motion-page: 700ms; /* the next page rising into place */
+  --motion-travel: 700ms; /* a dessert's photo flying card ↔ detail page */
+
+  /* The landing sequence: each piece's rise, and the gap between pieces. */
+  --motion-land: 1200ms;
+  --motion-stagger: 140ms;
 }
 
 @layer base {
@@ -255,13 +268,13 @@
   display: none;
 }
 ::view-transition-new(.page-fade) {
-  animation: 380ms var(--ease-settle) both page-rise;
+  animation: var(--motion-page) var(--ease-settle) both page-rise;
 }
 
 @keyframes page-rise {
   from {
     opacity: 0;
-    translate: 0 12px;
+    translate: 0 16px;
   }
 }
 
@@ -273,7 +286,7 @@
  * small snapshot shows when it is drawn large.
  */
 ::view-transition-group(.morph) {
-  animation-duration: 450ms;
+  animation-duration: var(--motion-travel);
   animation-timing-function: var(--ease-settle);
 }
 ::view-transition-old(.morph),
@@ -298,7 +311,7 @@
   display: none;
 }
 ::view-transition-new(.morph):only-child {
-  animation: 380ms var(--ease-settle) both page-rise;
+  animation: var(--motion-page) var(--ease-settle) both page-rise;
 }
 
 @keyframes morph-blur {
@@ -318,5 +331,75 @@
   ::view-transition-new(*) {
     animation-duration: 0s !important;
     animation-delay: 0s !important;
+  }
+}
+
+/*
+ * ── Landing ────────────────────────────────────────────────────────────
+ * The first view of the site unfolds instead of appearing all at once: the
+ * gold hairline draws across the top, then the home page's pieces rise into
+ * place one after another — watermark, eyebrow, headline, description,
+ * search — while the two photographs are unveiled from the top down and
+ * settle from a slight zoom, and the grid of desserts follows.
+ *
+ * Markup opts in with a class — `land`, `land-photo` or `land-line` — and
+ * sets its place in the sequence with `--i`, which multiplies
+ * `--motion-stagger` into a delay. `both` holds each piece hidden until its
+ * turn and at rest afterwards.
+ *
+ * First load only. Every rule is scoped to `html:not([data-landed])`, and
+ * <LandingMarker> in the layout stamps `data-landed` on <html> once the
+ * sequence has had time to finish. Client-side navigations mount fresh
+ * elements, which would otherwise replay all of this; after the stamp they get
+ * the page transition instead. Without JavaScript nothing stamps it — but then
+ * every page is a full load, which is a landing.
+ */
+html:not([data-landed]) .land-line {
+  transform-origin: left;
+  animation: land-draw 1600ms var(--ease-settle) both;
+}
+html:not([data-landed]) .land {
+  animation: land-rise var(--motion-land) var(--ease-settle) both;
+  animation-delay: calc(var(--i, 0) * var(--motion-stagger));
+}
+html:not([data-landed]) .land-photo {
+  animation: land-unveil 1400ms var(--ease-settle) both;
+  animation-delay: calc(var(--i, 0) * var(--motion-stagger));
+}
+html:not([data-landed]) .land-photo img {
+  animation: land-settle 1800ms var(--ease-settle) both;
+  animation-delay: calc(var(--i, 0) * var(--motion-stagger));
+}
+
+@keyframes land-draw {
+  from {
+    scale: 0 1;
+  }
+}
+@keyframes land-rise {
+  from {
+    opacity: 0;
+    translate: 0 24px;
+  }
+}
+/* A curtain lifting: the frame is revealed from its top edge down. */
+@keyframes land-unveil {
+  from {
+    clip-path: inset(0 0 100% 0);
+  }
+}
+@keyframes land-settle {
+  from {
+    scale: 1.08;
+  }
+}
+
+/* Reduced motion: the page is simply there, as it always was. */
+@media (prefers-reduced-motion: reduce) {
+  .land-line,
+  .land,
+  .land-photo,
+  .land-photo img {
+    animation: none !important;
   }
 }
