@@ -1,7 +1,7 @@
-import Image from "next/image";
 import Link from "next/link";
 import type { Metadata } from "next";
 
+import { FadeInImage } from "@/components/FadeInImage";
 import { requireUser } from "@/lib/auth";
 import { getMyEntries } from "@/lib/entries";
 import { isPlaceholder } from "@/lib/placeholders";
@@ -102,7 +102,7 @@ function MyEntryRow({ entry }: { entry: Entry }) {
     <li className="flex flex-wrap items-center gap-5 border border-line bg-card p-5 sm:flex-nowrap">
       <div className="relative h-20 w-20 shrink-0 overflow-hidden bg-accent-soft">
         {entry.photo_url ? (
-          <Image
+          <FadeInImage
             src={entry.photo_url}
             alt=""
             fill

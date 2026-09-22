@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Fraunces, Kantumruy_Pro, Noto_Serif_Khmer } from "next/font/google";
 import Link from "next/link";
+import { ViewTransition } from "react";
 
 import { AccountNav } from "@/components/AccountNav";
 
@@ -109,8 +110,19 @@ export default function RootLayout({
 
         {/* No container here. Each page draws its own full-bleed cream and
             maroon bands, and a max-width on <main> would trap them in a
-            column. The pages centre their own content instead. */}
-        <main>{children}</main>
+            column. The pages centre their own content instead.
+
+            The ViewTransition is what makes a page change animate rather than
+            cut: every navigation is a React transition, so when the page
+            inside <main> changes, the new one rises in (the `page-fade` rules
+            in globals.css). It wraps <main> rather than sitting in each page
+            because this layout persists across navigations — the boundary
+            stays and its contents update. The header and footer are outside
+            it and hold still, so there is always something fixed to read the
+            movement against. */}
+        <ViewTransition default="none" update="page-fade">
+          <main>{children}</main>
+        </ViewTransition>
 
         <footer className="border-t border-line">
           <div className="mx-auto max-w-6xl px-6 py-10 text-sm text-muted">

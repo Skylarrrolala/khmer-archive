@@ -110,12 +110,57 @@
    * by editing a hundred component classes.
    */
   --spacing: 0.28rem;
+
+  /*
+   * Motion. Every `transition-*` utility on the site takes its length and its
+   * curve from these two, so the hover fades on cards, links, fields and
+   * buttons are tuned here rather than in a hundred class lists — the same
+   * trick as `--spacing` above.
+   *
+   * Tailwind's defaults are 150ms on an ease-in-out curve. At 150ms a colour
+   * change reads as a flicker rather than a fade, and ease-in-out starts
+   * slowly, so the change seems to lag behind the pointer. 250ms on an
+   * ease-out curve responds at once and then settles, which is what reads as
+   * smooth. Anything that names its own `duration-*` (the photo fade-in, for
+   * one) still takes this curve, and so do the page transitions at the end of
+   * this file — `--ease-settle` is declared once, just below.
+   */
+  --default-transition-duration: 250ms;
+  --default-transition-timing-function: var(--ease-settle);
+}
+
+/*
+ * The site's one easing curve, as a plain custom property so both the theme
+ * above and the view-transition rules below can read it. (`@theme inline`
+ * substitutes its values into utilities rather than declaring them, so a
+ * theme token alone would not be visible to hand-written CSS.)
+ */
+:root {
+  --ease-settle: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 @layer base {
   body {
     background-color: var(--ground);
     color: var(--fg-ink);
+  }
+
+  /*
+   * Visitors who ask their system for reduced motion get every change at
+   * once. The hover and photo transitions only fade, but a fade is still
+   * motion to someone who has asked for none, and this one rule covers every
+   * transition the utilities produce. The page transitions have their own
+   * rule at the end of this file.
+   *
+   * `!important` is what lets a base-layer rule beat the utilities layer: for
+   * important declarations the cascade-layer order reverses.
+   */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      transition-duration: 0s !important;
+    }
   }
 
   /*
@@ -165,5 +210,113 @@
     letter-spacing: normal;
     line-height: 1;
     text-transform: none;
+  }
+}
+
+/*
+ * ── Page transitions ───────────────────────────────────────────────────
+ * Navigating used to cut: one page vanished and the next was simply there.
+ * These rules give the browser's View Transitions API something gentler to
+ * do. React starts a view transition for every navigation, and the two
+ * <ViewTransition> boundaries in the app decide what moves: <main> in
+ * app/layout.tsx (class `page-fade`) and each dessert's photo frame in
+ * components/EntryPhotoTransition.tsx (class `morph`). Browsers without the
+ * API skip all of this and navigate exactly as before.
+ *
+ * Nothing slides sideways. A directional slide moves the whole viewport,
+ * which is the motion most likely to bother someone sensitive to it; a rise of
+ * a few pixels and a photo travelling to its new frame carry the same sense
+ * of arrival with far less movement.
+ */
+
+/*
+ * Clicks during a transition go to the live page underneath rather than
+ * being swallowed by the animation overlay.
+ */
+::view-transition {
+  pointer-events: none;
+}
+
+/*
+ * The page itself. The old page leaves at once and the new one rises into
+ * place.
+ *
+ * The old page is hidden rather than faded out on purpose. Its snapshot is
+ * taken at the scroll position the visitor left it at, and the new page opens
+ * scrolled to the top, so fading the one into the other would sweep the old
+ * page up the screen — clicking a card near the bottom of the grid would drag
+ * the whole archive past the visitor's eyes. For the same reason the box
+ * itself does not animate between the two pages' sizes.
+ */
+::view-transition-group(.page-fade) {
+  animation: none;
+}
+::view-transition-old(.page-fade) {
+  display: none;
+}
+::view-transition-new(.page-fade) {
+  animation: 380ms var(--ease-settle) both page-rise;
+}
+
+@keyframes page-rise {
+  from {
+    opacity: 0;
+    translate: 0 12px;
+  }
+}
+
+/*
+ * A dessert's photo, travelling from its card to the detail page and back.
+ * The card's frame is square and the detail frame is 4:3, so both snapshots
+ * are cropped to the frame as it changes shape (`object-fit: cover`) rather
+ * than stretched. The brief blur mid-flight hides the pixel scaling that a
+ * small snapshot shows when it is drawn large.
+ */
+::view-transition-group(.morph) {
+  animation-duration: 450ms;
+  animation-timing-function: var(--ease-settle);
+}
+::view-transition-old(.morph),
+::view-transition-new(.morph) {
+  height: 100%;
+  object-fit: cover;
+}
+::view-transition-image-pair(.morph) {
+  animation-name: morph-blur;
+}
+
+/*
+ * A photo only travels when both ends are on screen. React will not fly it to
+ * or from somewhere the visitor cannot see — "← Back to the archive" opens the
+ * grid at the top, where the card may be far below the fold. Left alone, the
+ * unpaired photo would then run its own fade: the detail photo hanging over
+ * the incoming page for half a second. `:only-child` is how CSS spots a
+ * snapshot with no partner, and it is sent off with its page instead — gone
+ * at once when leaving, rising with the page when arriving.
+ */
+::view-transition-old(.morph):only-child {
+  display: none;
+}
+::view-transition-new(.morph):only-child {
+  animation: 380ms var(--ease-settle) both page-rise;
+}
+
+@keyframes morph-blur {
+  30% {
+    filter: blur(3px);
+  }
+}
+
+/*
+ * Reduced motion: no transition at all, so pages change instantly, the way
+ * the browser does it by default.
+ */
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-image-pair(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation-duration: 0s !important;
+    animation-delay: 0s !important;
   }
 }

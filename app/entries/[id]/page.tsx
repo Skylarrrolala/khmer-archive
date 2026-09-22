@@ -1,7 +1,8 @@
-import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { EntryPhotoTransition } from "@/components/EntryPhotoTransition";
+import { FadeInImage } from "@/components/FadeInImage";
 import { NoPhotoPanel } from "@/components/NoPhotoPanel";
 import { PendingBadge } from "@/components/PendingBadge";
 import { getPublishedEntry } from "@/lib/entries";
@@ -101,28 +102,32 @@ export default async function EntryPage({
 
       <div className="bg-card">
         <div className="mx-auto max-w-4xl px-6 py-16">
-          <div className="relative aspect-[4/3] overflow-hidden bg-accent-soft">
-            {entry.photo_url ? (
-              <Image
-                src={entry.photo_url}
-                /* The marker is kept out of the alt text — see EntryCard. */
-                alt={
-                  khmerPending
-                    ? entry.name_english
-                    : `${entry.name_english} (${entry.name_khmer})`
-                }
-                fill
-                sizes="(max-width: 896px) 100vw, 896px"
-                className="object-cover"
-                /* This is the largest image on the page, so it is loaded
-                   eagerly rather than lazily to keep the page from popping
-                   in. */
-                priority
-              />
-            ) : (
-              <NoPhotoPanel size="lg" />
-            )}
-          </div>
+          {/* The other end of the card's photo: opening an entry carries the
+              photo from the grid into this frame. See EntryPhotoTransition. */}
+          <EntryPhotoTransition entryId={entry.id}>
+            <div className="relative aspect-[4/3] overflow-hidden bg-accent-soft">
+              {entry.photo_url ? (
+                <FadeInImage
+                  src={entry.photo_url}
+                  /* The marker is kept out of the alt text — see EntryCard. */
+                  alt={
+                    khmerPending
+                      ? entry.name_english
+                      : `${entry.name_english} (${entry.name_khmer})`
+                  }
+                  fill
+                  sizes="(max-width: 896px) 100vw, 896px"
+                  className="object-cover"
+                  /* This is the largest image on the page, so it is loaded
+                     eagerly rather than lazily to keep the page from popping
+                     in. */
+                  priority
+                />
+              ) : (
+                <NoPhotoPanel size="lg" />
+              )}
+            </div>
+          </EntryPhotoTransition>
 
           {/*
             The fields as a numbered list: a hairline between each, the label

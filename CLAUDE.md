@@ -41,6 +41,19 @@ even if it seems like a natural improvement. If something seems like it
 would genuinely help, name it and ask first. Do not build it
 preemptively "while you're in there."
 
+> **Decision, 22 September 2026 — motion.** The founder asked for motion
+> past "clean and readable", knowing this rule, and chose to have it. What
+> was added, and all of it: hover fades retimed theme-wide
+> (`app/globals.css`), photos that fade in as they load
+> (`components/FadeInImage.tsx`), and page transitions through React's
+> `<ViewTransition>` — the page rising in, and a dessert's photo carried
+> from its card to its detail page (`app/layout.tsx`,
+> `components/EntryPhotoTransition.tsx`). Every piece is switched off under
+> `prefers-reduced-motion`, and no dependency was added. That is the whole
+> of the exception. Anything further — directional slides, the unused
+> `components/DriftWall.tsx`, new effects — is still under this rule: name
+> it and ask first.
+
 ## Data model (confirm before changing)
 `public.entries`, defined in `supabase/migrations/0001_init.sql`:
 - `name_khmer` — Khmer name of the dessert
@@ -112,6 +125,9 @@ Note two corrections to the original list: `middleware.ts` is deprecated in
 Next.js 16 and renamed to `proxy.ts`, and `/lib/supabase/client.ts` (a
 browser client) turned out not to be needed — the auth forms are Server
 Actions, so nothing authenticates from the browser.
+The motion work (see the decision under the hard rule) also touched
+`app/layout.tsx`, `app/globals.css`, `app/page.tsx` and
+`app/entries/[id]/page.tsx`, at the founder's request.
 Do not modify `supabase/migrations/0001_init.sql` in place — add a new
 numbered migration instead, so an already-deployed database can catch up.
 

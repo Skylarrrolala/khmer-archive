@@ -1,6 +1,5 @@
-import Image from "next/image";
-
 import { EntryCard } from "@/components/EntryCard";
+import { FadeInImage } from "@/components/FadeInImage";
 import { SearchBar } from "@/components/SearchBar";
 import { getPublishedEntries } from "@/lib/entries";
 import { isSupabaseConfigured } from "@/lib/env";
@@ -132,7 +131,7 @@ export default async function BrowsePage({
                     key={entry.id}
                     className="relative aspect-[3/4] overflow-hidden bg-accent-soft"
                   >
-                    <Image
+                    <FadeInImage
                       src={entry.photo_url}
                       alt=""
                       fill

@@ -1,6 +1,7 @@
-import Image from "next/image";
 import Link from "next/link";
 
+import { EntryPhotoTransition } from "@/components/EntryPhotoTransition";
+import { FadeInImage } from "@/components/FadeInImage";
 import { NoPhotoPanel } from "@/components/NoPhotoPanel";
 import { PendingBadge } from "@/components/PendingBadge";
 import { isPlaceholder } from "@/lib/placeholders";
@@ -61,28 +62,30 @@ export function EntryCard({ entry, index }: { entry: Entry; index: number }) {
         href={`/entries/${entry.id}`}
         className="block focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
       >
-        <div className="relative aspect-square bg-accent-soft">
-          {entry.photo_url ? (
-            <Image
-              src={entry.photo_url}
-              /* The Khmer name is dropped from the alt text when it is a
-                 marker. Otherwise a screen reader would announce the photo as
-                 "... ([KHMER SCRIPT NOT CONFIRMED])". */
-              alt={
-                khmerPending
-                  ? entry.name_english
-                  : `${entry.name_english} (${entry.name_khmer})`
-              }
-              fill
-              /* Tells the optimizer how wide the image renders, so it does not
-                 ship a 1200px file into a 350px slot. */
-              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 360px"
-              className="object-cover"
-            />
-          ) : (
-            <NoPhotoPanel />
-          )}
-        </div>
+        <EntryPhotoTransition entryId={entry.id}>
+          <div className="relative aspect-square bg-accent-soft">
+            {entry.photo_url ? (
+              <FadeInImage
+                src={entry.photo_url}
+                /* The Khmer name is dropped from the alt text when it is a
+                   marker. Otherwise a screen reader would announce the photo
+                   as "... ([KHMER SCRIPT NOT CONFIRMED])". */
+                alt={
+                  khmerPending
+                    ? entry.name_english
+                    : `${entry.name_english} (${entry.name_khmer})`
+                }
+                fill
+                /* Tells the optimizer how wide the image renders, so it does
+                   not ship a 1200px file into a 350px slot. */
+                sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 360px"
+                className="object-cover"
+              />
+            ) : (
+              <NoPhotoPanel />
+            )}
+          </div>
+        </EntryPhotoTransition>
 
         <div className="space-y-1 border-t border-line p-5">
           {/*
