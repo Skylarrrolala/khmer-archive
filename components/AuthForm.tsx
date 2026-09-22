@@ -1,5 +1,7 @@
 import Link from "next/link";
 
+import { SubmitButton } from "@/components/SubmitButton";
+
 /**
  * The sign-up / log-in form.
  *
@@ -108,12 +110,14 @@ export function AuthForm({
             ) : null}
           </div>
 
-          <button
-            type="submit"
-            className="w-full bg-accent px-6 py-3 text-xs uppercase tracking-[0.18em] text-on-accent transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-          >
-            {isLogin ? "Sign in" : "Create account"}
-          </button>
+          {/* The one client component on this page — see SubmitButton for
+              why a repeat click here used to turn a successful sign-up into
+              an error message. */}
+          <SubmitButton
+            label={isLogin ? "Sign in" : "Create account"}
+            pendingLabel={isLogin ? "Signing in…" : "Creating account…"}
+            className="w-full bg-accent px-6 py-3 text-xs uppercase tracking-[0.18em] text-on-accent transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:cursor-wait disabled:opacity-60"
+          />
         </form>
 
         <p className="mt-8 border-t border-line pt-6 text-sm text-muted">
