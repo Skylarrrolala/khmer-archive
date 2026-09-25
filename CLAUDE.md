@@ -133,6 +133,9 @@ Actions, so nothing authenticates from the browser.
 The motion work (see the decision under the hard rule) also touched
 `app/layout.tsx`, `app/globals.css`, `app/page.tsx` and
 `app/entries/[id]/page.tsx`, at the founder's request.
+Lab 6 added `app/error.tsx` (a generic error boundary for every page) and
+moved the home page from `app/page.tsx` to `app/(browse)/page.tsx`, so that
+`app/(browse)/loading.tsx` applies to `/` only. The URL is unchanged.
 Do not modify `supabase/migrations/0001_init.sql` in place — add a new
 numbered migration instead, so an already-deployed database can catch up.
 

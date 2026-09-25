@@ -5,7 +5,7 @@ import Link from "next/link";
  *
  * Deliberately a plain HTML <form method="get"> with no `"use client"` and no
  * React state. Submitting it navigates to `/?q=whatever`, which re-runs the
- * server component in app/page.tsx and re-queries Postgres.
+ * server component in app/(browse)/page.tsx and re-queries Postgres.
  *
  * That means: the search runs in the database, the result is a real URL a
  * visitor can bookmark or share, and it works with JavaScript disabled.
