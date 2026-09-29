@@ -139,13 +139,11 @@ export function EntryCard({ entry, index }: { entry: Entry; index: number }) {
             ) : (
               <span className="uppercase tracking-[0.18em]">{entry.context}</span>
             )}
-            <span aria-hidden="true" className="text-gold">
-              •
-            </span>
-            {sourcePending ? (
-              <PendingBadge>Source pending verification</PendingBadge>
-            ) : (
+            {!sourcePending && (
+              <>
+                <span aria-hidden="true" className="text-gold">•</span>
               <span>Told by {entry.told_by}</span>
+              </>
             )}
           </div>
         </div>

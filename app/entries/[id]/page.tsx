@@ -149,18 +149,14 @@ export default async function EntryPage({
               </dd>
             </div>
 
-            <div className="grid gap-x-10 gap-y-3 border-b border-line py-8 sm:grid-cols-[14rem_1fr]">
+            {!sourcePending && <div className="grid gap-x-10 gap-y-3 border-b border-line py-8 sm:grid-cols-[14rem_1fr]">
               <dt className="text-xs uppercase tracking-[0.22em] text-muted">
                 Told by
               </dt>
               <dd className="text-lg text-ink">
-                {sourcePending ? (
-                  <PendingBadge>Source pending verification</PendingBadge>
-                ) : (
-                  entry.told_by
-                )}
+                {entry.told_by}
               </dd>
-            </div>
+            </div>}
 
             <div className="grid gap-x-10 gap-y-3 border-b border-line py-8 sm:grid-cols-[14rem_1fr]">
               <dt className="text-xs uppercase tracking-[0.22em] text-muted">
