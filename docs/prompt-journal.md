@@ -122,4 +122,497 @@ the rule into `CLAUDE.md` the same session so it can't come back.
 
 ---
 
-*Continues through Sprints 2 and 3.*
+# Prompt Journal — Sprint 2
+
+*Section opened on Friday 16 October 2026.*
+
+How these entries were sourced, so nothing here reads as more than it is:
+
+- **Entries R1–R4 are retrospective.** They were written on 16 October from
+  the local Claude Code session transcripts in `~/.claude/projects/…` and
+  the Codex session files in `~/.codex/sessions/…`. Each prompt is copied
+  verbatim from those files. Parts 3 and 4 say only what the transcripts
+  and commits record.
+- **Entries 5 and 6 were written on the day**, as the work happened. Anything
+  that has not happened yet is marked *pending*.
+- **Technique labels** were suggested by Claude on 16 October. Each needs
+  checking against Chapter 3's list and changing if the course names it
+  differently.
+- **Missing originals.** The prompts behind the core Sprint 2 code are not
+  on this machine. For 6 September (`684f55d` accounts, `35c402b`
+  submission form) they are in the cloud session
+  `session_016oevNtsMMF2B7QjC38kJ1a`. For 15 September (`4951961`
+  edit/delete, `8093518`, `07d7c51` the RLS script) no session is recorded.
+  These entries can only be written once that text is recovered from
+  claude.ai. Do not reconstruct them from memory.
+
+---
+
+## Entry R1 — Tuesday 22 September (retrospective, written 16 October)
+
+*Claude Code session `2d502356`, 14:43 Cambodia time. Shipped `ca86047` on the
+branch `fix-signup-confirmation`.*
+
+**1. Prompt**
+
+```text
+i think the problem is still with the signup, it is not yet working properly
+```
+
+**2. Technique** — Reporting an observed failure *(suggested label)*
+
+No diagnosis was offered and no fix requested: the prompt states what
+happened when the feature was used for real, and leaves the cause open.
+
+**3. What came back**
+
+A diagnosis from the Supabase auth logs rather than from the code. Sign-up had
+actually worked, but the button gave no sign it was busy, so it was clicked
+about ten times and the repeats hit `over_email_send_rate_limit`. The address
+typed had an underscore, so the confirmation email went nowhere. The Auth
+"Site URL" was `http://localhost:3000`, and nothing in the app handled the
+link's code. The code fix came with it: a self-disabling submit button,
+`emailRedirectTo`, and an `/auth/confirm` route.
+
+**4. What I changed or rejected**
+
+As recorded in the session: I asked for the mistyped account to be removed
+("aight remove the account"), then for the fix to be committed and pushed
+before creating my real account ("let's push and commit first and then i'll
+create the account"). It went onto its own branch and was not merged into
+`main`, so the live site never got it. It was merged into the integration
+branch on 16 October (`1b3e622`).
+
+---
+
+## Entry R2 — Friday 25 September, Lab 6 (retrospective, written 16 October)
+
+*Prompt drafted with Codex (`gpt-6-luna`) acting as a planning partner, then
+pasted into Claude Code session `1095852e` at 14:28. Shipped in `345dad2`.*
+
+**1. Prompt**
+
+```text
+Implement only a generic error boundary for the app using a new `app/error.tsx` file.
+
+Before editing, check the project’s instructions and installed Next.js version to confirm the supported error-boundary props and retry method. Do not assume a particular Next.js API version.
+
+Requirements:
+- Keep the existing Supabase data layer, schema, RLS policies, and contributor + pending/published/rejected review workflow unchanged.
+- Show a short, friendly, generic message and a retry button, using the existing archive styling.
+- Do not display `error.message` or other internal error details.
+- Preserve the existing layout, header, and footer around the error UI.
+- Do not add `loading.tsx`, move or rename `app/page.tsx`, change route groups, or alter motion behavior.
+- Do not install packages or run database commands.
+- Do not run tests unless I ask.
+
+After editing, report the exact diff and explain how the error boundary works with this installed Next.js version.
+```
+
+**2. Technique** — Negative constraints that fence the scope *(suggested label)*
+
+Most of the prompt says what must *not* change, and one line asks the model
+to check the installed version's docs before assuming an API.
+
+**3. What came back**
+
+`app/error.tsx`, a Client Component that uses the installed version's
+`retry()` (which re-fetches from the server) rather than `reset()`, and
+never prints `error.message`.
+
+**4. What I changed or rejected**
+
+Two follow-up prompts, both in the transcript. The first (14:37) fixed a
+comment still pointing at the old home-page path. The second (14:42) wrapped
+that comment and added an `app/error.tsx` row to `docs/architecture.md`.
+Codex then committed the result as `345dad2`. That commit carries no
+AI-assistance line, though both models worked on it.
+
+---
+
+## Entry R3 — Tuesday 29 September (retrospective, written 16 October)
+
+*Codex, VS Code extension, sessions `01a0ec08` and `01a0ec0b`, 14:20–14:28.
+Nothing was committed.*
+
+**1. Prompt** — three messages in a row, as typed:
+
+```text
+write the ruls for my entrues table
+```
+
+```text
+generate me with the culumn name, rule, wrong looks like in this chat, dont implement it yet
+```
+
+```text
+i wanna add characther limit too, how many character for each one, and also file format accepted when upload the photo
+```
+
+**2. Technique** — Iterative refinement behind a "don't implement yet" gate *(suggested label)*
+
+**3. What came back**
+
+A table of each column's rule and what a wrong value looks like. Then
+proposed limits (`name_khmer` and `name_english` 100, `told_by` 120,
+`context` 500, `description` 5,000 characters) and photo rules (JPEG, PNG
+or WebP up to 5 MB; refuse SVG, GIF, HEIC and PDF). It also pointed out
+that the database did not stop a client supplying its own `created_at`.
+
+**4. What I changed or rejected**
+
+Nothing at the time. The limits were not implemented in September. What was
+implemented on 16 October is recorded in Entry 6.
+
+---
+
+## Entry R4 — Tuesday 29 September (retrospective, written 16 October)
+
+*Codex, VS Code extension, session `01a0ebfe`, 14:09. Shipped `b012764` on
+`smoother-motion`.*
+
+**1. Prompt**
+
+```text
+remove the source pending tag from every entries
+```
+
+**2. Technique** — Direct instruction, no constraints *(suggested label)*
+
+**3. What came back**
+
+`b012764`. Rather than removing the marker, it hid the whole "Told by" line
+whenever the source was unconfirmed. So the seven researched entries showed
+no credit at all, while the footer still said every entry was credited.
+
+**4. What I changed or rejected**
+
+Nothing at the time ("commit"). On 16 October the integration branch left
+`b012764` out, because hiding a missing source breaks the sourcing rule in
+`CLAUDE.md`. The badge stays until a real person can be named.
+
+---
+
+## Entry 5 — Friday 16 October: the Sprint 2 audit
+
+*Claude Code (`claude-opus-5-5`), this machine. Read-only; no files changed.*
+
+**1. Prompt**
+
+```text
+Audit my Khmer Living Archive for Sprint 2. Reconstruct the work completed across Weeks 5–8, then assess current submission readiness. Do not implement fixes yet.
+
+Repository: https://github.com/Skylarrrolala/khmer-archive
+Live URL: https://khmer-archive-zeta.vercel.app/
+Professor’s GitHub username: jesseorndorff
+Deadline: October 19, 2026, 11:59 PM, Cambodia time.
+
+Read AGENTS.md, CLAUDE.md, and project documentation first. For this audit, the Sprint 2 requirements below are authoritative over conflicting project instructions. Report those conflicts.
+
+AUDIT RULES
+
+- Read-only: no file changes, commits, pushes, deployments, migrations, database writes, package installs, or security-setting changes.
+- Preserve uncommitted work.
+- Fetch remote refs if available without changing the working tree.
+- Never expose credentials, tokens, or secret values.
+- Label evidence clearly: observed now, documented historical result, inferred, or unverified.
+- Do not treat a commit message, screenshot, or old report as proof the current deployment passes.
+- Do not invent prompts, dates, test results, personal decisions, or AI mistakes.
+
+PART 1 — RECONSTRUCT THE SPRINT
+
+Inspect all available local and remote branches, Git history, diffs, project notes, journals, lab documents, and review findings.
+
+Build a chronological account of actual work, grouped by:
+- Week 5: signup, login, logout, managed authentication.
+- Week 6: database schema, ownership model, database integration.
+- Week 7: contribution forms, photo uploads, owner edit/delete, validation, direct-request attacks.
+- Week 8: partner review, fixes, regression testing, submission preparation.
+
+Use actual commit dates; do not force work into a week if the evidence does not support it.
+
+For each meaningful change, report:
+- Date and commit.
+- Problem or requirement.
+- What changed.
+- Test evidence recorded at the time.
+- Remaining limitation.
+- AI attribution, if present.
+
+Compare local HEAD, working tree, remote main, other relevant branches, and deployed version if identifiable. GPT previously inspected main at 07d7c51; determine whether newer work exists locally or elsewhere.
+
+Inspect available historical session records only if accessible and relevant. Do not claim to have reviewed chats you cannot access.
+
+PART 2 — AUDIT AGAINST THE ACTUAL BRIEF
+
+Important scope clarification:
+Sprint 2 has NO review workflow. A new contribution must appear publicly immediately. Submit-review-publish belongs to Sprint 3. No roles, admin screens, notifications, or profile pages.
+
+Check:
+
+Visitors
+- Live site loads; browsing, English/Khmer search, and detail pages work.
+- Sprint 1 behavior has not regressed.
+- Khmer titles, entry text, and search results render correctly.
+- Photos load reasonably on a phone; state whether measured or untested.
+- No visible junk, lorem ipsum, placeholder entries, or unresolved source markers.
+
+Contributors
+- Signup, confirmation if enabled, login, and logout.
+- Helpful messages without account enumeration or technical leakage.
+- Text plus at least one photo required for a new contribution.
+- New entry immediately appears publicly with correct credit.
+- A single name is accepted; do not require a Western-style first/last name.
+- Khmer text accepted in every applicable text field.
+- Empty fields, whitespace-only titles, .txt uploads, and oversized photos refused.
+- Validation exists at the appropriate server/database/storage layers, not just HTML controls.
+
+Ownership
+- A cannot edit/delete B’s entries through the interface.
+- A direct authenticated update/delete against B’s entry changes zero rows.
+- The app does not misleadingly report zero-row mutations as successful.
+- Reload/read-back proves the target entry remains unchanged.
+- Test evidence uses two distinct accounts, not only an ownerless seed row.
+- Inspect RLS USING and WITH CHECK, table grants, constraints, and storage policies.
+- Check forged contributor_id, ownership reassignment, and modification of protected fields.
+- Explain how ownership protection must remain intact when immediate publication replaces the premature pending-only workflow.
+
+Repository and operations
+- jesseorndorff has collaborator access.
+- Small commits and AI-assisted attribution.
+- No secrets in current files or available Git history, including reverted work.
+- Redact all secret findings. Distinguish public Supabase publishable keys from privileged secrets.
+- State scan coverage and limits.
+- Verify Supabase dashboard project status if accessible; otherwise mark unverified.
+- Check README and architecture docs against actual implementation.
+
+Known leads to investigate, not assume:
+- GPT observed seven public entries, all showing “Source pending verification.”
+- Live signup says submissions remain unpublished until reviewed.
+- submitEntry previously uploaded a photo before inserting the row without cleanup on insert failure.
+- Historical RLS verification used one account and an ownerless seed row.
+- README previously said Sprint 2 was not started despite existing auth/contribution code.
+
+Do not run existing test scripts blindly. Read them first. Tests requiring writes, account creation, credential access, or configuration changes should be reported as pending with precise instructions.
+
+PART 3 — JOURNAL AND REFLECTION EVIDENCE
+
+Locate at least three genuine Sprint 2 Prompt Journal entries across the sprint. Each needs:
+1. Exact prompt as sent.
+2. Technique by name.
+3. What came back.
+4. What I changed before accepting.
+
+Map available prompts to commits or session evidence. Identify missing original wording. Clearly label retrospective reconstruction; never backdate it.
+
+Find evidence for the reflection:
+1. What I built and a security decision I made beyond the brief.
+2. Where AI got security wrong and how I caught it.
+3. An unresolved worry and what fixing it would take.
+
+Separate my documented choices from AI suggestions. Do not invent an AI security mistake just to fill paragraph two.
+
+PART 4 — DELIVER THE REPORT
+
+Return:
+1. Current version and deployment summary.
+2. Evidence-backed sprint timeline.
+3. Rubric table using Verified / Partial / Missing / Unverified:
+   - Works for visitors and contributors.
+   - Ownership holds under attack.
+   - Real collection and Khmer support.
+   - Process and explainability.
+   - Reflection.
+4. Conflicts between project instructions and the Sprint 2 brief.
+5. Journal/reflection evidence available and missing.
+6. Exact remaining live/manual tests.
+7. The three most useful findings, ordered by submission impact.
+
+Finish with the single best next task. Discuss the code, never judge the coder. Do not fix anything yet.
+```
+
+**2. Technique** — Read-only audit with ranked authority and required evidence labels *(suggested label)*
+
+The prompt names which source wins when two disagree (the brief over the
+project files), bans writes, and makes every claim carry a label: observed,
+documented, inferred or unverified.
+
+**3. What came back**
+
+A report covering seven areas. Its three findings ranked by submission impact:
+
+1. RLS forced every new and edited entry to `pending`, so nothing a
+   contributor submitted could appear publicly. The one real submission had
+   been hidden since 25 September. The photo was optional.
+2. No photo had ever been stored through the live app. Next's default 1 MB
+   Server Action limit sat below the advertised 5 MB, and the storage bucket
+   had no size or type limits.
+3. What was live, what was merged and what was proven did not line up.
+   Production served a build matching `345dad2`; `main` was `07d7c51`. The
+   sign-up fix and the Sprint 1 journal were unmerged. Ownership had only
+   been tested with one account against an ownerless seed row. A zero-row
+   delete reported "The entry was deleted."
+
+**4. What I changed or rejected**
+
+*Pending — my review of the audit, in my own words.*
+
+---
+
+## Entry 6 — Friday 16 October: the integration and implementation pass
+
+*Claude Code (`claude-opus-5-5`), this machine, on the branch
+`sprint2-integration` in a separate worktree. Nothing pushed, merged or
+deployed, and no production SQL run.*
+
+**1. Prompt**
+
+```text
+Proceed from the Sprint 2 audit with a focused integration and implementation pass. Work incrementally: implement, check, and commit one logical change before starting the next.
+
+Repository: https://github.com/Skylarrrolala/khmer-archive
+Live URL: https://khmer-archive-zeta.vercel.app/
+Professor’s GitHub username: jesseorndorff
+Deadline: October 19, 2026, 11:59 PM, Cambodia time.
+
+GOAL
+
+Prepare one reviewable Sprint 2 version:
+- Visitors can browse and search in English and Khmer.
+- A stranger can sign up, log in, and contribute text with at least one photo.
+- New contributions appear publicly immediately.
+- Contributors can edit/delete only their own entries, enforced by the database.
+- Genuine sources are credited by name, with permission.
+
+Read applicable AGENTS.md, CLAUDE.md, and the audit first. The supplied Sprint 2 brief overrides conflicting project instructions: review workflows belong to Sprint 3.
+
+COMMIT WORKFLOW — REQUIRED
+
+Before implementation, show the proposed commit sequence, then proceed.
+
+For each logical change:
+1. Explain the change and why it is needed.
+2. Implement only that change.
+3. Run relevant checks and inspect the diff.
+4. Stage only its files or hunks.
+5. Commit with an accurate message and clear AI-assistance attribution.
+6. Report the commit hash, changes, and validation before continuing.
+
+Do not implement the entire fix list and split it into artificial commits afterward. The history must reflect the work as it happens.
+
+Keep commits coherent and understandable. Closely dependent changes may belong together; do not knowingly leave the project broken just to make commits smaller.
+
+Avoid blanket `git add .`. Keep unrelated cleanup, formatting, and existing uncommitted work out of your commits.
+
+Preserve existing history. Do not squash everything into one integration commit, rewrite old commits, backdate work, or force-push.
+
+1. ESTABLISH THE INTEGRATION BRANCH
+
+- Inspect branches, remote refs, HEAD, and working-tree changes.
+- Preserve the uncommitted Apollo comment without including it in unrelated commits.
+- Create an isolated integration branch/worktree from current origin/main.
+- Inspect the newer smoother-motion commits and ca86047 individually.
+- Integrate relevant completed work while resolving dependencies deliberately. Preserve existing commits where practical.
+- Do not include b012764’s concealment of missing source credits.
+- Do not discard any existing branch or work.
+
+2. IMPLEMENT SPRINT 2 CORRECTIONS
+
+Publication and ownership:
+- Add a new numbered migration; never edit 0001 in place.
+- Make new and edited entries published for Sprint 2.
+- Preserve owner checks in INSERT WITH CHECK, UPDATE USING/WITH CHECK, and DELETE USING.
+- Protect ownership and immutable metadata against direct authenticated requests.
+- Inspect existing table/column grants before choosing the grants or trigger design.
+- Add appropriate database constraints for required text and reasonable length limits, checking compatibility with existing data first.
+- Support single-word names and Khmer text.
+- Revalidate the public archive after relevant mutations.
+- Do not automatically publish the existing pending row without inspecting its content and obtaining my decision.
+
+Photos and failure handling:
+- Require a photo for new contributions without invalidating legitimate historical records.
+- Align application upload limits, Server Action request limits, and storage bucket restrictions. Account for hosting request limits and multipart overhead.
+- Validate uploads server-side. Do not treat browser-declared MIME types, extensions, or bucket MIME restrictions as proof that file bytes form a valid image.
+- Use existing capabilities where practical; do not add dependencies without asking.
+- Clean up an uploaded photo if inserting the entry fails.
+- Handle cleanup failure explicitly.
+- Preserve entered text where practical and explain any need to reselect a photo.
+
+Auth and mutations:
+- Integrate and inspect ca86047’s signup-confirmation fix.
+- Check redirect validation and safe authentication error messages.
+- Fix zero-row deletes so they do not claim an entry was deleted.
+- Ensure failed edits also avoid misleading success messages.
+- Keep credentials and tokens out of output, logs, commits, and journal entries.
+
+Copy and documentation:
+- Remove premature moderation/review language.
+- Update README, architecture notes, and conflicting project instructions to match the implemented Sprint 2 behavior.
+- Keep unresolved source credits visible.
+- Do not fabricate source names, interviews, testimony, permission, or photo provenance.
+
+3. VALIDATE AS YOU WORK
+
+- Run relevant checks for each change.
+- Run lint, TypeScript, and production build before declaring the integrated version ready.
+- Add focused, meaningful tests for changed security rules, validation, upload failures, and mutation outcomes.
+- Update the ownership test approach for immediate publication and TWO distinct accounts.
+- Check UI access restrictions and direct authenticated requests.
+- Verify rejected attacks leave the target entry unchanged through read-back.
+- Include forged ownership on insert and ownership reassignment on update.
+- Never disable email confirmation or weaken security to run tests.
+- Do not run scripts blindly: inspect their prerequisites and side effects first.
+- Use isolated local/test infrastructure where available. Do not create live test accounts or mutate production during this pass.
+- Clearly distinguish tests run successfully from tests still pending.
+
+4. RECORD THE PROCESS HONESTLY
+
+- Record this actual prompt and today’s work as it happens.
+- For journal entries, include the exact prompt, technique name, what came back, and what I actually changed before accepting.
+- If my review or changes have not happened yet, mark that section pending.
+- Label reconstructed historical entries as retrospective and use the real writing date.
+- Do not invent missing prompts, dates, personal decisions, AI mistakes, or test results.
+- Explain each security change plainly so I can answer: what does this rule do, why is it here, and what breaks without it?
+
+5. PREPARE THE PRODUCTION ROLLOUT
+
+Do not push, merge, deploy, apply production SQL, run migration repair, or alter live settings during this pass.
+
+- Inspect the migration-history mismatch rather than assuming repair is safe.
+- Prepare the exact rollout sequence, including current schema/policy/grant checks, compatibility between application and database versions, and rollback.
+- Identify any hosting or Supabase configuration changes required.
+- Do not expose secret values.
+
+FINAL REPORT
+
+Return:
+- Integration branch and ordered commit hashes.
+- What each commit changed and how it was checked.
+- Final lint, TypeScript, build, and focused test results.
+- Proposed production migration and rollout sequence.
+- Remaining live two-account, signup, upload, and phone tests.
+- Collaborator-access status for jesseorndorff, if readable.
+- The specific genuine source names, permissions, and photo information needed from me.
+- Remaining blockers and known limitations.
+
+Continue through all authorized local work. Stop only at a concrete blocker or the production rollout boundary above.
+```
+
+**2. Technique** — Incremental workflow with a hard stop boundary *(suggested label)*
+
+Each change is implemented, checked and committed before the next one
+starts. The prompt states exactly where the work must stop: no push, no
+merge, no deploy, no production SQL.
+
+**3. What came back**
+
+*Pending — filled in at the end of the session from the commits it
+produced.*
+
+**4. What I changed or rejected**
+
+*Pending — my review of the branch, in my own words.*
+
+---
+
+*Continues through Sprint 3.*
