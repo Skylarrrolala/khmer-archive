@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { safeInternalPath } from "@/lib/auth";
@@ -77,8 +78,28 @@ export async function signUp(formData: FormData) {
     backToForm("/signup", "Use a password of at least 8 characters.", next);
   }
 
+  /*
+   * Where the link in the confirmation email should land: /auth/confirm on the
+   * same site the person signed up on, so a sign-up on the live site comes back
+   * to the live site and one on localhost comes back to localhost. Without
+   * this, Supabase uses the project's "Site URL" for every link.
+   *
+   * The Origin header is not taken on trust. Next.js refuses a Server Action
+   * whose Origin does not match the Host it arrived on, and Supabase refuses
+   * any redirect that is not the Site URL's host or on the project's Redirect
+   * URLs allow-list — it falls back to the Site URL instead.
+   */
+  const origin = (await headers()).get("origin");
+  const emailRedirectTo = origin
+    ? `${origin}/auth/confirm?next=${encodeURIComponent(next)}`
+    : undefined;
+
   const supabase = await createSupabaseServerClient();
-  const { data, error } = await supabase.auth.signUp({ email, password });
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: { emailRedirectTo },
+  });
 
   if (error) {
     backToForm("/signup", error.message, next);

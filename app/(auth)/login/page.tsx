@@ -9,13 +9,29 @@ export const metadata: Metadata = {
 };
 
 /**
+ * What to tell someone partway through confirming their email.
+ *
+ *   confirm    just signed up (from the sign-up action)
+ *   confirmed  opened the email link in a browser that cannot finish signing
+ *              them in (from /auth/confirm)
+ *   expired    opened a link Supabase would not accept (from /auth/confirm)
+ */
+const NOTICES: Record<string, string> = {
+  confirm:
+    "Account created. Open the confirmation link we emailed you to finish signing up.",
+  confirmed: "Your email is confirmed. Sign in to continue.",
+  expired:
+    "That confirmation link has expired or was already used. If you have confirmed your email, sign in; if not, sign up again for a new link.",
+};
+
+/**
  * The log-in page.
  *
  * `searchParams` is a Promise in the App Router and is awaited. Three values
  * arrive here, all of them from the URL and therefore untrusted:
  *
  *   error    a message from a failed attempt, put there by the server action
- *   pending  set to "confirm" after a sign-up that needs an email confirmed
+ *   pending  where an email confirmation stands — one of the NOTICES keys
  *   next     where to go once signed in
  *
  * `error` is rendered as text inside JSX, so React escapes it — a crafted
@@ -38,10 +54,14 @@ export default async function LoginPage({
 
   const next = safeInternalPath(params.next);
   const error = first(params.error) || undefined;
-  const notice =
-    first(params.pending) === "confirm"
-      ? "Account created. Check your email for a confirmation link, then sign in."
-      : undefined;
+
+  /*
+   * `Object.hasOwn` rather than a bare lookup, because `pending` comes from the
+   * URL: `?pending=constructor` would otherwise find Object's constructor on
+   * the prototype and try to render a function.
+   */
+  const pending = first(params.pending);
+  const notice = Object.hasOwn(NOTICES, pending) ? NOTICES[pending] : undefined;
 
   return (
     <AuthForm
