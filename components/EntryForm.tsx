@@ -1,5 +1,14 @@
-import Image from "next/image";
+"use client";
 
+import Image from "next/image";
+import { useActionState } from "react";
+
+import { SubmitButton } from "@/components/SubmitButton";
+import {
+  initialEntryFormState,
+  type EntryFormState,
+  type EntryValues,
+} from "@/lib/entry-form";
 import type { Entry } from "@/lib/types";
 
 /**
@@ -9,49 +18,63 @@ import type { Entry } from "@/lib/types";
  * same things, so they share this rather than keeping two copies that slowly
  * disagree about which fields are required or how large a photo may be.
  *
- * It stays a Server Component. There is no `"use client"` anywhere in this
- * project: a plain `<form action={serverAction}>` posts as multipart on its
- * own, which is what lets the file input work with no client-side JavaScript
- * at all. The cost is that errors arrive back as a redirect carrying
- * `?error=`, because without `useActionState` there is nowhere in memory to
- * put them — the two pages pass that string in as `error`.
+ * A Client Component, for one reason: when a submission fails, the text has
+ * to come back. With a plain `<form action>` a failure could only redirect,
+ * which empties the form — a story of several thousand characters gone
+ * because of one missing field. `useActionState` keeps the action's answer in
+ * memory instead: the action returns the error and the values as typed, and
+ * the form is remounted (keyed on `attempt`) with those values as its starting
+ * text. The photo is the one thing that cannot come back — no website can set
+ * a file input's value — so the error message says to choose it again.
+ *
+ * The submit button disables itself while the action runs. That reduces
+ * accidental duplicate submissions on a slow upload; it does not prevent
+ * them (not without JavaScript, not before hydration, not across two tabs).
  *
  * Nothing here is a security boundary. The `required` attributes and the
  * `accept` filter are hints a browser can be told to ignore; the action
- * revalidates every field, the CHECK constraints in
- * supabase/migrations/0001_init.sql refuse an empty one, and the RLS policies
- * decide whose row may be written at all.
+ * revalidates every field, the CHECK constraints in migration 0002 refuse an
+ * invalid one, and the RLS policies decide whose row may be written at all.
  */
 export function EntryForm({
   action,
   submitLabel,
+  pendingLabel,
   entry,
-  error,
 }: {
-  action: (formData: FormData) => void | Promise<void>;
+  action: (state: EntryFormState, formData: FormData) => Promise<EntryFormState>;
   submitLabel: string;
+  /** What the button says while the action runs. */
+  pendingLabel: string;
   /** The entry being edited; absent when submitting a new one. */
   entry?: Entry | null;
-  /** A message from the last attempt, already decoded from `?error=`. */
-  error?: string;
 }) {
+  const [state, formAction] = useActionState(action, initialEntryFormState);
+
+  // After a failed attempt, what was typed; otherwise the saved entry, if any.
+  const value = (name: keyof EntryValues) => state.values?.[name] ?? entry?.[name];
+
   return (
     <>
-      {/* Escaped by React on render, so a crafted ?error= is shown, not run. */}
-      {error ? (
-        <p className="mt-8 border border-accent bg-accent-soft px-4 py-3 text-sm text-accent">
-          {error}
+      {/* role="alert" so a screen reader announces it: it appears after the
+          submit, without a page load. React escapes the text. */}
+      {state.error ? (
+        <p
+          role="alert"
+          className="mt-8 border border-accent bg-accent-soft px-4 py-3 text-sm text-accent"
+        >
+          {state.error}
         </p>
       ) : null}
 
-      <form action={action} className="mt-10 space-y-8">
+      <form key={state.attempt} action={formAction} className="mt-10 space-y-8">
         <div className="grid gap-8 sm:grid-cols-2">
           <Field
             name="name_khmer"
             label="Name in Khmer"
             hint="នំ… — the name as it is written."
             required
-            defaultValue={entry?.name_khmer}
+            defaultValue={value("name_khmer")}
             /* The one input that must be Khmer script, so it asks for the
                Khmer keyboard on a phone and is set in the Khmer face with the
                leading that keeps subscripts from clipping. */
@@ -63,7 +86,7 @@ export function EntryForm({
             label="Name in English"
             hint="A transliteration, or a plain description."
             required
-            defaultValue={entry?.name_english}
+            defaultValue={value("name_english")}
           />
         </div>
 
@@ -73,14 +96,14 @@ export function EntryForm({
             label="Told by"
             hint="The person who shared it, by name, with their permission."
             required
-            defaultValue={entry?.told_by}
+            defaultValue={value("told_by")}
           />
           <Field
             name="context"
             label="When it is made"
             hint="A festival, a ceremony, an everyday snack."
             required
-            defaultValue={entry?.context}
+            defaultValue={value("context")}
           />
         </div>
 
@@ -96,7 +119,7 @@ export function EntryForm({
             name="description"
             required
             rows={10}
-            defaultValue={entry?.description}
+            defaultValue={value("description")}
             className="w-full border border-line bg-accent-soft px-4 py-3 text-ink transition-colors placeholder:text-muted focus:border-accent focus:outline-none"
           />
           <p className="text-xs text-muted">
@@ -107,12 +130,11 @@ export function EntryForm({
 
         <PhotoField currentUrl={entry?.photo_url ?? null} />
 
-        <button
-          type="submit"
-          className="bg-accent px-8 py-3 text-xs uppercase tracking-[0.18em] text-on-accent transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-        >
-          {submitLabel}
-        </button>
+        <SubmitButton
+          label={submitLabel}
+          pendingLabel={pendingLabel}
+          className="bg-accent px-8 py-3 text-xs uppercase tracking-[0.18em] text-on-accent transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:cursor-wait disabled:opacity-60"
+        />
       </form>
     </>
   );
@@ -159,19 +181,17 @@ function Field({
 }
 
 /**
- * The photograph: optional on a new entry, replaceable on an existing one.
+ * The photograph: required on a new entry, replaceable on an existing one.
  *
- * Optional is deliberate, and it is the archive's subject matter rather than a
- * shortcut. CLAUDE.md's sprint list says "text + at least one photo upload",
- * but the data model is explicit that `photo_url` is nullable because
- * "desserts they only remember may have no photo at all" — and a dessert
- * nobody photographed is exactly what this archive exists to record.
- * Requiring a file would make that unrecordable.
+ * Required because Sprint 2's brief asks for text plus at least one photo,
+ * and an entry is public the moment it is saved. Migration 0002 enforces the
+ * same rule in the database — no published row without a photo — so the
+ * `required` attribute here is only a hint; the server actions check it too.
  *
- * On an entry that already has one, the choice is three-way — keep, replace,
- * remove — so removal is a checkbox rather than the absence of a file. An
- * empty file input cannot mean "delete the photo", because that is also what
- * it means when someone edits the spelling of a name and touches nothing else.
+ * On an entry that already has one, the choice is two-way — keep or replace.
+ * There is no "remove": a published entry cannot be left without a photo. An
+ * empty file input means "keep", because that is also what the form sends
+ * when someone edits the spelling of a name and touches nothing else.
  */
 function PhotoField({ currentUrl }: { currentUrl: string | null }) {
   return (
@@ -180,8 +200,7 @@ function PhotoField({ currentUrl }: { currentUrl: string | null }) {
         htmlFor="photo"
         className="block text-xs uppercase tracking-[0.18em] text-muted"
       >
-        Photograph{" "}
-        <span className="normal-case tracking-normal">(optional)</span>
+        Photograph
       </label>
 
       {currentUrl ? (
@@ -195,20 +214,9 @@ function PhotoField({ currentUrl }: { currentUrl: string | null }) {
               className="object-cover"
             />
           </div>
-          <div className="min-w-0 flex-1 space-y-3">
-            <p className="text-xs uppercase tracking-[0.18em] text-muted">
-              Current photograph
-            </p>
-            <label className="flex items-center gap-3 text-sm text-ink">
-              <input
-                type="checkbox"
-                name="remove_photo"
-                value="1"
-                className="h-4 w-4 accent-accent"
-              />
-              Remove this photograph
-            </label>
-          </div>
+          <p className="min-w-0 flex-1 text-xs uppercase tracking-[0.18em] text-muted">
+            Current photograph
+          </p>
         </div>
       ) : null}
 
@@ -217,13 +225,14 @@ function PhotoField({ currentUrl }: { currentUrl: string | null }) {
         name="photo"
         type="file"
         accept="image/jpeg,image/png,image/webp"
+        required={!currentUrl}
         className="w-full border border-line bg-accent-soft px-4 py-3 text-sm text-ink file:mr-4 file:border-0 file:bg-accent file:px-4 file:py-2 file:text-xs file:uppercase file:tracking-[0.18em] file:text-on-accent focus:border-accent focus:outline-none"
       />
 
       <p className="text-xs text-muted">
         {currentUrl
           ? "JPEG, PNG or WebP, up to 5 MB. Choosing a file replaces the photograph above; leaving this empty keeps it."
-          : "JPEG, PNG or WebP, up to 5 MB. Leave this empty for a dessert that is remembered but was never photographed — that absence is part of the record, not a gap in it."}
+          : "JPEG, PNG or WebP, up to 5 MB. Every entry needs a photograph of the dessert."}
       </p>
     </div>
   );

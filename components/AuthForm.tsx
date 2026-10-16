@@ -47,7 +47,7 @@ export function AuthForm({
         <p className="mt-4 text-sm leading-relaxed text-muted">
           {isLogin
             ? "Sign in to submit a dessert and to see the entries you have already sent."
-            : "An account lets you submit a dessert and track it. Submissions stay unpublished until a reviewer approves them."}
+            : "An account lets you add a dessert to the public archive, and edit or delete the entries you add."}
         </p>
 
         {/* Rendered before the fields so a screen reader meets the problem on

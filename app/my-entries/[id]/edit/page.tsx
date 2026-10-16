@@ -20,8 +20,8 @@ export const dynamic = "force-dynamic";
  * `getMyEntry` returns null, and that happens for a nonexistent id, a
  * malformed one, and another contributor's — all three identically. Nobody can
  * use this URL to learn that someone else's pending entry exists, which is the
- * same reason the public detail page 404s a pending entry instead of saying
- * "awaiting review".
+ * same reason the public detail page 404s an unpublished entry instead of
+ * saying "not public".
  *
  * And it is a 404 rather than a permission check because there is no
  * permission check here to fail. The row simply did not come back: the SELECT
@@ -31,20 +31,14 @@ export const dynamic = "force-dynamic";
  */
 export default async function EditEntryPage({
   params,
-  searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ error?: string | string[] }>;
 }) {
   const { id } = await params;
   const user = await requireUser(`/my-entries/${id}/edit`);
   const entry = await getMyEntry(id, user.id);
 
   if (!entry) notFound();
-
-  const query = await searchParams;
-  const raw = query.error;
-  const error = (Array.isArray(raw) ? raw[0] : raw) ?? "";
 
   return (
     <section className="mx-auto max-w-3xl px-6 py-16 lg:py-20">
@@ -64,32 +58,31 @@ export default async function EditEntryPage({
       </h1>
 
       {/*
-        Said plainly, and before the form rather than next to the button,
-        because it is the one consequence of saving that a contributor would
-        not expect: the update policy will only accept a row that comes out
-        pending, so editing a published entry takes it off the public archive
-        until a reviewer approves it again.
+        Saving always publishes: since migration 0002 the update policy only
+        accepts a row that comes out published. For a published entry that
+        changes nothing. For an entry submitted before Sprint 2 that was never
+        published, saving is what makes it public — said plainly, before the
+        form, because it is the one consequence a contributor might not expect.
       */}
       {entry.status === "published" ? (
-        <p className="mt-8 border border-accent bg-accent-soft px-4 py-3 text-sm text-accent">
-          This entry is published. Saving a change returns it to the review
-          queue, and it leaves the public archive until a reviewer publishes it
-          again.
+        <p className="mt-5 max-w-xl text-sm leading-relaxed text-muted">
+          Changes you save appear in the public archive straight away.
         </p>
       ) : (
-        <p className="mt-5 max-w-xl text-sm leading-relaxed text-muted">
-          Your changes are saved as pending and stay off the public archive
-          until a reviewer publishes the entry.
+        <p className="mt-8 border border-accent bg-accent-soft px-4 py-3 text-sm text-accent">
+          This entry is not public yet. Saving it publishes it to the archive,
+          and it needs a photograph first.
         </p>
       )}
 
       {/* The id is bound into the action here, so it never appears in the
-          markup as something to retype. */}
+          markup as something to retype. Errors come back through the form's
+          own state, not the URL. */}
       <EntryForm
         action={saveEntry.bind(null, entry.id)}
-        submitLabel="Save changes"
+        submitLabel={entry.status === "published" ? "Save changes" : "Save and publish"}
+        pendingLabel="Saving…"
         entry={entry}
-        error={error}
       />
 
       <div className="mt-16 border-t border-line pt-8">

@@ -20,18 +20,11 @@ export const dynamic = "force-dynamic";
  * POST which follows came from a signed-in session.
  *
  * The fields themselves live in <EntryForm />, shared with the edit page so
- * the two cannot disagree about what an entry needs.
+ * the two cannot disagree about what an entry needs. Errors come back through
+ * the form's own state, not the URL, so this page reads no query string.
  */
-export default async function SubmitPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ error?: string | string[] }>;
-}) {
+export default async function SubmitPage() {
   await requireUser("/submit");
-
-  const params = await searchParams;
-  const raw = params.error;
-  const error = (Array.isArray(raw) ? raw[0] : raw) ?? "";
 
   return (
     <section className="mx-auto max-w-3xl px-6 py-16 lg:py-20">
@@ -44,15 +37,15 @@ export default async function SubmitPage({
       </h1>
 
       <p className="mt-5 max-w-xl text-sm leading-relaxed text-muted">
-        Your entry is saved as pending and stays off the public archive until a
-        reviewer publishes it. You can see its status any time under your
-        entries.
+        Your entry appears in the public archive as soon as you publish it,
+        credited to the person you name below. You can edit or delete it any
+        time from your entries.
       </p>
 
       <EntryForm
         action={submitEntry}
-        submitLabel="Submit for review"
-        error={error}
+        submitLabel="Publish entry"
+        pendingLabel="Publishing…"
       />
     </section>
   );

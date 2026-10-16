@@ -4,9 +4,16 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { requireUser } from "@/lib/auth";
-import { readEntryFields, readPhoto } from "@/lib/entry-form";
+import {
+  entryValues,
+  formFailure,
+  readEntryFields,
+  readPhoto,
+  type EntryFormState,
+} from "@/lib/entry-form";
 import { deleteEntry, getMyEntry, updateEntry } from "@/lib/entries";
 import { deletePhoto, uploadPhoto } from "@/lib/photos";
+import { saveFailureMessage, saveWithPhoto } from "@/lib/save-with-photo";
 
 /**
  * Editing and deleting an entry you own.
@@ -15,93 +22,96 @@ import { deletePhoto, uploadPhoto } from "@/lib/photos";
  * `saveEntry.bind(null, entry.id)` on the page — so there is no id in the
  * markup for anyone to retype. That is tidiness, not security: if the id were
  * a hidden input and someone swapped in another contributor's, every query
- * below would still come back empty, because the update and delete policies in
- * supabase/migrations/0001_init.sql compare `auth.uid()` to the row's
- * `contributor_id` inside Postgres. The database is what refuses. These
+ * below would still come back empty, because the update and delete policies
+ * compare `auth.uid()` to the row's `contributor_id` inside Postgres
+ * (0001_init.sql, kept unchanged by 0002). The database is what refuses. These
  * functions decide what happens next — a redirect back to your own entries,
  * rather than a stack trace.
  */
 
-function backToForm(id: string, message: string): never {
-  redirect(`/my-entries/${id}/edit?error=${encodeURIComponent(message)}`);
-}
-
 /**
- * Rewrites an entry and returns it to the review queue.
+ * Rewrites an entry. The result is public as soon as it is saved.
  *
- * The photograph is a three-way choice, and the order of the branches is the
- * order of intent: a chosen file wins, then an explicit removal, and doing
- * neither keeps what is already there. An empty file input cannot mean
- * "delete the photo" — it is also what an untouched form sends.
+ * The photograph can be replaced but not removed: a published entry must
+ * have one (migration 0002 refuses a published row without a photo), and
+ * saving an edit publishes the entry. A chosen file replaces the current
+ * photo; an empty file input keeps it, because an empty input is also what an
+ * untouched form sends. The one case with no photo to keep is an entry
+ * submitted before Sprint 2 that never had one — saving it needs a photo.
+ *
+ * Used with `useActionState`, like submitting: a failure comes back to the
+ * form with the text as typed; success and "no such entry of yours" redirect.
+ * Neither outcome reads as a success unless the row was actually written.
  */
-export async function saveEntry(id: string, formData: FormData) {
+export async function saveEntry(
+  id: string,
+  previous: EntryFormState,
+  formData: FormData,
+): Promise<EntryFormState> {
   const user = await requireUser(`/my-entries/${id}/edit`);
 
+  const values = entryValues(formData);
+
   const read = readEntryFields(formData);
-  if (!read.ok) backToForm(id, read.error);
+  if (!read.ok) return formFailure(previous, read.error, values);
 
   /*
-   * Loaded for one reason: to know which file the old `photo_url` points at,
-   * so a replaced photograph can be cleaned out of Storage afterwards. It is
-   * not an ownership check — `updateEntry` below is subject to the same RLS
-   * whether this succeeded or not.
+   * Loaded to know which photo the entry has now, so that a replaced one can
+   * be cleaned out of Storage afterwards, and so that an entry with no photo
+   * can be asked for one. It is not an ownership check — `updateEntry` below
+   * is subject to the same RLS whether this succeeded or not.
    */
   const current = await getMyEntry(id, user.id);
-  if (!current) redirect("/my-entries");
+  if (!current) redirect("/my-entries?unchanged=1");
 
   const photo = readPhoto(formData);
-  const removeRequested = formData.get("remove_photo") === "1";
+  if (!photo && !current.photo_url) {
+    return formFailure(
+      previous,
+      "Add a photograph of the dessert. An entry needs one to be public.",
+      values,
+    );
+  }
 
-  let photoUrl = current.photo_url;
-  let replaced: string | null = null;
+  const outcome = await saveWithPhoto({
+    upload: photo ? () => uploadPhoto(user.id, photo) : null,
+    write: (newPhotoUrl) =>
+      updateEntry(id, { ...read.fields, photoUrl: newPhotoUrl ?? current.photo_url }),
+    removeUploaded: (url) => deletePhoto(user.id, url),
+  });
 
-  if (photo) {
-    const upload = await uploadPhoto(user.id, photo);
-    if (!upload.ok) backToForm(id, upload.error);
+  if (outcome.status === "upload-failed") {
+    return formFailure(
+      previous,
+      `${outcome.error} Your text is kept; choose the photo again before you retry.`,
+      values,
+    );
+  }
 
-    photoUrl = upload.url;
-    replaced = current.photo_url;
-  } else if (removeRequested) {
-    photoUrl = null;
-    replaced = current.photo_url;
+  if (outcome.status === "not-saved") {
+    // Matched no row: the entry was deleted meanwhile, or is not this
+    // contributor's. Said as such on the list page — never as "saved".
+    if (outcome.cause === "no-row") redirect("/my-entries?unchanged=1");
+    return formFailure(previous, saveFailureMessage("edit", outcome), values);
   }
 
   /*
-   * Only the one call is wrapped. `redirect()` works by throwing, so a
-   * try/catch thrown around anything wider would swallow the redirects below
-   * and turn a successful save into a blank page.
+   * The old photo goes only once the row no longer points at it; the other
+   * order risks a row pointing at a file that is already gone. If it cannot
+   * be removed, the save still stands, and the notice says the old file is
+   * still in storage.
    */
-  let updated;
-  try {
-    updated = await updateEntry(id, { ...read.fields, photoUrl });
-  } catch (cause) {
-    // A policy refusal, phrased for a contributor. Reaching this means the
-    // database declined the write — worth showing on the form rather than as
-    // a 500, which tells them nothing about what to do next.
-    if (photo && photoUrl) await deletePhoto(user.id, photoUrl);
-    backToForm(id, cause instanceof Error ? cause.message : "That change was refused.");
-  }
+  const oldPhotoRemoved =
+    outcome.newPhotoUrl && current.photo_url
+      ? await deletePhoto(user.id, current.photo_url)
+      : true;
 
-  if (!updated) {
-    // RLS matched no row. If a new file was just uploaded, nothing points at
-    // it now, so take it back out rather than leaving it in the bucket.
-    if (photo && photoUrl) await deletePhoto(user.id, photoUrl);
-    redirect("/my-entries");
-  }
-
-  // Only once the row no longer refers to it. The other order risks a row
-  // pointing at a file that is already gone.
-  await deletePhoto(user.id, replaced);
-
-  /*
-   * An edit sets the entry back to pending, so a previously published one has
-   * just left the public archive: the browse page and its detail page both
-   * change, not only "my entries".
-   */
+  // The edit is public now, so the browse page and the entry's own page
+  // change, not only "my entries".
   revalidatePath("/my-entries");
   revalidatePath("/");
   revalidatePath(`/entries/${id}`);
-  redirect("/my-entries?updated=1");
+  redirect(oldPhotoRemoved ? "/my-entries?updated=1" : "/my-entries?updated=1&oldphoto=kept");
 }
 
 /**

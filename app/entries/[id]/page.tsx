@@ -24,7 +24,7 @@ export const dynamic = "force-dynamic";
  *
  * `notFound()` renders Next's 404 with a 404 status. A pending entry takes the
  * same path as a nonexistent one, so the URL reveals nothing about entries
- * still awaiting review.
+ * that are not public.
  *
  * Fields that hold an editing marker rather than a value are rendered as
  * badges, using the same predicate as the browse card so the two pages agree

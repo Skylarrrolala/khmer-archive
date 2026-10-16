@@ -1,3 +1,4 @@
+import { EntryWriteError } from "@/lib/save-with-photo";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { Entry } from "@/lib/types";
 
@@ -80,7 +81,7 @@ export async function getPublishedEntries(search?: string): Promise<Entry[]> {
  * which is exactly what we want: a pending entry and a nonexistent entry look
  * identical from the outside, so the detail page shows the same 404 for both.
  * That is deliberate — it means a URL cannot be used to confirm that an
- * unreviewed entry exists.
+ * unpublished entry exists.
  */
 export async function getPublishedEntry(id: string): Promise<Entry | null> {
   const supabase = await createSupabaseServerClient();
@@ -112,9 +113,9 @@ export async function getPublishedEntry(id: string): Promise<Entry | null> {
  * this would return the contributor's rows *plus* the entire published
  * archive.
  *
- * Filtering on status instead would be wrong in a subtler way: it would drop a
- * contributor's own entry the moment a reviewer approved it, which is the one
- * moment they most want to see it.
+ * Filtering on status instead would be wrong in a subtler way: it would hide
+ * either the contributor's published entries or the older unpublished one,
+ * when this page exists to show them all.
  *
  * Passing the id in is not the security check. A caller who lied about it
  * would get nothing back, because the policies still limit the rows Postgres
@@ -135,14 +136,18 @@ export async function getMyEntries(contributorId: string): Promise<Entry[]> {
 }
 
 /**
- * Creates one entry, owned by the contributor who submitted it.
+ * Creates one entry, owned by the contributor who submitted it. It is public
+ * the moment this returns: Sprint 2 has no review step.
  *
- * `contributor_id` and `status` are set here rather than taken from the form.
- * That is belt and braces: the insert policy's `with check` already refuses
- * any row whose contributor_id is not `auth.uid()` or whose status is not
- * 'pending', so a forged field would be rejected by Postgres. Setting them
- * server-side means the request never gets that far, and a reader of this
- * function can see that a contributor cannot self-publish.
+ * `contributor_id` is set here rather than taken from the form. That is belt
+ * and braces: the insert policy's `with check` already refuses any row whose
+ * contributor_id is not `auth.uid()`, so a forged one would be rejected by
+ * Postgres.
+ *
+ * `status` is not sent at all, and must not be. Migration 0002 gives
+ * contributors no privilege to write it on insert, so the column's default,
+ * 'published', always applies. Sending it, even as 'published', would be
+ * refused. The same goes for `id` and `created_at`: the database sets them.
  */
 export async function createEntry(input: {
   contributorId: string;
@@ -165,12 +170,15 @@ export async function createEntry(input: {
       context: input.context,
       description: input.description,
       photo_url: input.photoUrl,
-      status: "pending",
     })
     .select()
     .single();
 
-  if (error) throw new Error(`Could not save the entry: ${error.message}`);
+  if (error) {
+    // What Postgres said stays in the server log; the page gets the code only.
+    console.error(`[entries] insert refused (${error.code}): ${error.message}`);
+    throw new EntryWriteError(error.code);
+  }
 
   return data;
 }
@@ -178,11 +186,11 @@ export async function createEntry(input: {
 /**
  * One of the contributor's own entries, whatever its status.
  *
- * The counterpart to `getPublishedEntry`, and the difference between the two
- * is the whole of Sprint 2's ownership rule. That one adds
+ * The counterpart to `getPublishedEntry`. That one adds
  * `.eq("status","published")` so the public can only reach published rows;
- * this one does not, because a contributor editing their pending submission
- * needs to load a pending row.
+ * this one does not, because a contributor may still have an unpublished row
+ * from before Sprint 2 published entries on submit, and has to be able to load
+ * it to edit or delete it.
  *
  * What keeps that from becoming a hole is that nothing here checks ownership
  * either. Both SELECT policies apply to this query — Postgres ORs them — so
@@ -220,8 +228,9 @@ export async function getMyEntry(
  * nothing.
  *
  * 42501 is `insufficient_privilege` — what Postgres raises when a row would
- * violate a policy's `with check`, e.g. an update that tried to leave the
- * entry published. It is worth telling apart from the zero-row case: one means
+ * violate a policy's `with check`, or when a statement writes a column the
+ * role has no privilege for (migration 0002 makes `contributor_id`, `id` and
+ * `created_at` unwritable). It is worth telling apart from the zero-row case: one means
  * "you may not write that", the other means "there is no such row of yours",
  * and a contributor shown the wrong one of those goes looking in the wrong
  * place.
@@ -231,7 +240,7 @@ function isPermissionDenied(code?: string): boolean {
 }
 
 /**
- * Rewrites one entry and sends it back for review.
+ * Rewrites one entry. The edited entry is public as soon as this returns.
  *
  * There is no ownership check in this function, and that is the point. The
  * only thing standing between this update and somebody else's row is the
@@ -242,11 +251,14 @@ function isPermissionDenied(code?: string): boolean {
  * app is where ownership is decided. Ask for the row by id; let the database
  * say whether it is yours.
  *
- * `status: 'pending'` is likewise not a decision made here — it is the only
- * value the policy's `with check` accepts. An edit therefore returns the entry
- * to the review queue, which is exactly what the migration's comment says it
- * should. `contributor_id` is never written at all: the safest column is the
- * one no statement touches.
+ * `status: 'published'` is likewise not a decision made here — since
+ * migration 0002 it is the only value the update policy's `with check`
+ * accepts. For a published entry it changes nothing; for the one older entry
+ * that was submitted before Sprint 2 and is still unpublished, saving an edit
+ * is what publishes it (and 0002 refuses that unless it has a photo).
+ * `contributor_id`, `id` and `created_at` are never written: 0002 gives
+ * contributors no privilege to, and the safest column is the one no
+ * statement touches.
  *
  * Returns null when no row matched — someone else's entry, or one already
  * deleted. Those are indistinguishable from out here, deliberately.
@@ -273,7 +285,7 @@ export async function updateEntry(
       context: fields.context,
       description: fields.description,
       photo_url: fields.photoUrl,
-      status: "pending",
+      status: "published",
     })
     .eq("id", id)
     .select()
@@ -281,14 +293,10 @@ export async function updateEntry(
 
   if (error) {
     if (error.code === "22P02") return null;
-    if (isPermissionDenied(error.code)) {
-      throw new Error(
-        "That change was refused: an entry can only be edited by the " +
-          "contributor who submitted it, and an edited entry has to go back " +
-          "for review.",
-      );
-    }
-    throw new Error(`Could not save your changes: ${error.message}`);
+    // What Postgres said stays in the server log; the page gets the code
+    // only, and saveFailureMessage turns that into a sentence.
+    console.error(`[entries] update refused (${error.code}): ${error.message}`);
+    throw new EntryWriteError(error.code);
   }
 
   return data;

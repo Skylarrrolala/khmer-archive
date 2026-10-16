@@ -4,54 +4,82 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { requireUser } from "@/lib/auth";
-import { readEntryFields, readPhoto } from "@/lib/entry-form";
+import {
+  entryValues,
+  formFailure,
+  readEntryFields,
+  readPhoto,
+  type EntryFormState,
+} from "@/lib/entry-form";
 import { createEntry } from "@/lib/entries";
-import { uploadPhoto } from "@/lib/photos";
+import { deletePhoto, uploadPhoto } from "@/lib/photos";
+import { EntryWriteError, saveFailureMessage, saveWithPhoto } from "@/lib/save-with-photo";
 
 /**
  * Submitting one dessert to the archive.
  *
- * A Server Action rather than a route handler, so the form is a plain
- * `<form action={...}>` with no client component — the same choice the search
- * box and the auth forms make. Errors come back as a redirect carrying
- * `?error=`, because without `useActionState` there is nowhere in memory to
- * put them.
+ * A saved entry is public immediately — Sprint 2 has no review step — so it
+ * must carry a photograph: the brief asks for text plus at least one photo.
+ * That is checked here first, so a contributor is told before anything is
+ * uploaded, and it is enforced again by migration 0002, which refuses any
+ * published row without a photo.
+ *
+ * Used with `useActionState` (see components/EntryForm.tsx): a failure
+ * returns the message and the text exactly as typed, so the form comes back
+ * filled in rather than empty. Success redirects. Nothing the database or
+ * Storage says is passed through — it goes to the server log.
  *
  * Nothing in this file is what stops a contributor writing an entry owned by
- * someone else, or publishing one without review. The insert policy in
- * supabase/migrations/0001_init.sql does that, and the Storage policy confines
- * an upload to a folder named after the uploader's own id. What is here is the
- * validation that makes the failure legible instead of a 500.
+ * someone else. The insert policy does that (auth.uid() = contributor_id),
+ * and the Storage policy confines an upload to a folder named after the
+ * uploader's own id.
  */
-
-function backToForm(message: string): never {
-  redirect(`/submit?error=${encodeURIComponent(message)}`);
-}
-
-export async function submitEntry(formData: FormData) {
+export async function submitEntry(
+  previous: EntryFormState,
+  formData: FormData,
+): Promise<EntryFormState> {
   // Redirects to /login when signed out, so the rest of this can assume a user.
   const user = await requireUser("/submit");
 
+  const values = entryValues(formData);
+
   const read = readEntryFields(formData);
-  if (!read.ok) backToForm(read.error);
+  if (!read.ok) return formFailure(previous, read.error, values);
 
   const photo = readPhoto(formData);
-  let photoUrl: string | null = null;
-
-  if (photo) {
-    const upload = await uploadPhoto(user.id, photo);
-    if (!upload.ok) backToForm(upload.error);
-    photoUrl = upload.url;
+  if (!photo) {
+    return formFailure(previous, "Add a photograph of the dessert. Every entry needs one.", values);
   }
 
-  await createEntry({
-    contributorId: user.id,
-    ...read.fields,
-    photoUrl,
+  /*
+   * Upload, then insert; if the insert does not land, the photo is taken back
+   * out of Storage, and if even that fails the message says so (see
+   * lib/save-with-photo.ts).
+   */
+  const outcome = await saveWithPhoto({
+    upload: () => uploadPhoto(user.id, photo),
+    write: (photoUrl) => {
+      if (!photoUrl) throw new EntryWriteError(undefined);
+      return createEntry({ contributorId: user.id, ...read.fields, photoUrl });
+    },
+    removeUploaded: (url) => deletePhoto(user.id, url),
   });
 
-  // The new row is pending, so the public browse page does not change — but
-  // "my entries" does, and the masthead count with it.
+  if (outcome.status === "upload-failed") {
+    return formFailure(
+      previous,
+      `${outcome.error} Your text is kept; choose the photo again before you retry.`,
+      values,
+    );
+  }
+  if (outcome.status === "not-saved") {
+    return formFailure(previous, saveFailureMessage("new", outcome), values);
+  }
+
+  // The new entry is public now, so the archive's front page and the entry's
+  // own page change, as well as "my entries".
+  revalidatePath("/");
+  revalidatePath(`/entries/${outcome.value.id}`);
   revalidatePath("/my-entries");
   redirect("/my-entries?submitted=1");
 }

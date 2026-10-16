@@ -83,3 +83,55 @@ export function readPhoto(formData: FormData): File | null {
 
   return photo instanceof File && photo.size > 0 ? photo : null;
 }
+
+/**
+ * The five text fields exactly as typed, keyed by column name, so a failed
+ * submission can put them back in the form. Not trimmed: what comes back is
+ * what the contributor wrote.
+ */
+export type EntryValues = {
+  name_khmer: string;
+  name_english: string;
+  told_by: string;
+  context: string;
+  description: string;
+};
+
+/**
+ * What a submit or edit action hands back to the form when it does not
+ * succeed. Success never comes back here: it redirects.
+ *
+ * `attempt` counts failed submissions. The form is keyed on it, so each
+ * failure remounts the inputs with `values` as their starting text.
+ */
+export type EntryFormState = {
+  error: string | null;
+  values: EntryValues | null;
+  attempt: number;
+};
+
+export const initialEntryFormState: EntryFormState = {
+  error: null,
+  values: null,
+  attempt: 0,
+};
+
+export function entryValues(formData: FormData): EntryValues {
+  const raw = (name: string) => String(formData.get(name) ?? "");
+  return {
+    name_khmer: raw("name_khmer"),
+    name_english: raw("name_english"),
+    told_by: raw("told_by"),
+    context: raw("context"),
+    description: raw("description"),
+  };
+}
+
+/** A failed attempt: the message, and the text to put back. */
+export function formFailure(
+  previous: EntryFormState,
+  error: string,
+  values: EntryValues,
+): EntryFormState {
+  return { error, values, attempt: previous.attempt + 1 };
+}

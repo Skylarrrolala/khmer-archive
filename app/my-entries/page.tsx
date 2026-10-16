@@ -16,8 +16,10 @@ export const dynamic = "force-dynamic";
 /**
  * Everything this contributor has submitted, with where it stands.
  *
- * This is the one page in the archive that shows unpublished rows, and it is
- * worth being precise about why that is safe. It is not because of the
+ * Since Sprint 2 every new entry is published on submit, so the only
+ * unpublished rows left are ones sent before that. This is the one page that
+ * can show such a row, and it is worth being precise about why that is safe.
+ * It is not because of the
  * `requireUser` call at the top — that only decides whether to render. It is
  * because `getMyEntries` runs as this user's session, and the RLS policy
  * "contributors can read their own entries" is what makes Postgres willing to
@@ -30,6 +32,8 @@ export default async function MyEntriesPage({
   searchParams: Promise<{
     submitted?: string | string[];
     updated?: string | string[];
+    oldphoto?: string | string[];
+    unchanged?: string | string[];
     deleted?: string | string[];
   }>;
 }) {
@@ -72,9 +76,8 @@ export default async function MyEntriesPage({
 
       {entries.length === 0 ? (
         <p className="mt-6 border border-line bg-card p-8 text-muted">
-          You have not submitted anything yet. The first one can be a dessert
-          nobody photographed — a description on its own is a complete entry
-          here.
+          You have not added anything yet. An entry needs the dessert&apos;s
+          name, the person who shared it, its story, and a photograph.
         </p>
       ) : (
         <ul className="mt-6 space-y-5">
@@ -88,12 +91,13 @@ export default async function MyEntriesPage({
 }
 
 /**
- * One submission: a thumbnail, the name, and its review status.
+ * One submission: a thumbnail, the name, whether it is public, and links.
  *
  * Deliberately not <EntryCard />. That component is built for the public grid,
- * where every row is published and links to a detail page. A pending entry has
- * no public detail page to link to — `getPublishedEntry` would 404 on it, on
- * purpose — so linking one would hand the contributor a broken promise.
+ * where every row is published and the whole card links to its detail page.
+ * Here a row may be an older, unpublished entry, which has no public page —
+ * `getPublishedEntry` 404s on it, on purpose — so the "View" link is shown only
+ * for published rows.
  */
 function MyEntryRow({ entry }: { entry: Entry }) {
   const khmerPending = isPlaceholder(entry.name_khmer);
@@ -141,12 +145,18 @@ function MyEntryRow({ entry }: { entry: Entry }) {
       <div className="flex shrink-0 flex-col items-start gap-3 sm:items-end">
         <StatusBadge status={entry.status} />
 
-        {/* Shown for every row, including published ones: editing a published
-            entry is allowed and returns it to the review queue, which the edit
-            page says before the form. Hiding these links would not protect
-            anything either way — the update and delete policies are what
-            refuse a row that is not yours. */}
+        {/* Edit and Delete are shown for every row. Hiding them would not
+            protect anything — the update and delete policies are what refuse
+            a row that is not yours. */}
         <p className="flex gap-4 text-[0.65rem] uppercase tracking-[0.15em]">
+          {entry.status === "published" ? (
+            <Link
+              href={`/entries/${entry.id}`}
+              className="text-accent hover:underline"
+            >
+              View
+            </Link>
+          ) : null}
           <Link
             href={`/my-entries/${entry.id}/edit`}
             className="text-accent hover:underline"
@@ -175,16 +185,27 @@ function MyEntryRow({ entry }: { entry: Entry }) {
 function noticeFor(params: {
   submitted?: string | string[];
   updated?: string | string[];
+  oldphoto?: string | string[];
+  unchanged?: string | string[];
   deleted?: string | string[];
 }): string | null {
-  const flag = (value: string | string[] | undefined) =>
-    (Array.isArray(value) ? value[0] : value) === "1";
+  const first = (value: string | string[] | undefined) =>
+    Array.isArray(value) ? value[0] : value;
+  const flag = (value: string | string[] | undefined) => first(value) === "1";
 
   if (flag(params.submitted)) {
-    return "Thank you — your entry was received and is waiting for review.";
+    return "Thank you — your entry is now public in the archive.";
   }
   if (flag(params.updated)) {
-    return "Your changes were saved. The entry is back in the review queue.";
+    // The save stands either way; the second sentence only says that the
+    // photo it replaced is still sitting in storage.
+    return first(params.oldphoto) === "kept"
+      ? "Your changes were saved and are now public. The photo you replaced could not be removed from storage."
+      : "Your changes were saved and are now public.";
+  }
+  if (flag(params.unchanged)) {
+    // An edit that matched no row. Saying "saved" here would be false.
+    return "Nothing was saved: that entry no longer exists, or it is not yours to edit.";
   }
   if (flag(params.deleted)) {
     return "The entry was deleted.";
@@ -194,24 +215,25 @@ function noticeFor(params: {
 }
 
 /**
- * Where an entry stands in review.
+ * Whether an entry is public.
  *
- * The three states are the `entry_status` enum in the migration. Colour alone
- * does not carry the meaning — each badge says its own word — because a
- * red-green difference is exactly what a colour-blind reader cannot use, and
- * "rejected" is not something to communicate by hue.
+ * The `entry_status` enum keeps three states, but Sprint 2 has no review, so
+ * the only distinction a contributor needs is public or not. New and edited
+ * entries are always published; "Not public" can only be an entry sent before
+ * Sprint 2. Colour alone does not carry the meaning — each badge says its own
+ * words — because a colour difference is exactly what some readers cannot see.
  */
 function StatusBadge({ status }: { status: EntryStatus }) {
   const label: Record<EntryStatus, string> = {
-    pending: "Awaiting review",
+    pending: "Not public",
     published: "Published",
-    rejected: "Not accepted",
+    rejected: "Not public",
   };
 
   const tone: Record<EntryStatus, string> = {
     pending: "border-line text-muted",
     published: "border-accent text-accent",
-    rejected: "border-line text-muted line-through",
+    rejected: "border-line text-muted",
   };
 
   return (

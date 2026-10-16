@@ -17,7 +17,10 @@ export type Entry = {
   told_by: string;
   context: string;
   description: string;
-  /** null when the dessert is remembered but was never photographed. */
+  /**
+   * null only on a row saved before Sprint 2 required a photograph. A
+   * published row always has one (migration 0002 refuses it otherwise).
+   */
   photo_url: string | null;
   status: EntryStatus;
   /** null on the dummy seed rows, which nobody owns. */

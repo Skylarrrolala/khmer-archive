@@ -75,7 +75,13 @@ export async function uploadPhoto(
     .upload(path, photo, { contentType: photo.type, upsert: false });
 
   if (error) {
-    return { ok: false, error: `The photo could not be uploaded: ${error.message}` };
+    // Storage's own wording goes to the server log, not the page: it is
+    // written for developers and can name internal limits and paths.
+    console.error(`[photo-upload] ${path}: ${error.message}`);
+    return {
+      ok: false,
+      error: "The photo could not be uploaded. Please try again, or try a smaller JPEG, PNG or WebP.",
+    };
   }
 
   const { data } = supabase.storage.from(BUCKET).getPublicUrl(path);
@@ -109,31 +115,50 @@ export function storagePathFromUrl(publicUrl: string): string | null {
 /**
  * Removes a photo the contributor owns, once nothing points at it any more.
  *
- * Deliberately quiet. This runs after the row has already been updated or
- * deleted, and by then the contributor's action has succeeded — failing it
- * now, because a file they can no longer see could not be tidied away, would
- * be reporting someone else's problem as theirs. A file left behind costs
- * storage; an error thrown here would cost the edit.
+ * Resolves to true when the file is gone, or when there was nothing of this
+ * contributor's to remove (no URL, or one of the seeded photographs in
+ * public/entries/). Resolves to false when a removal was attempted and did
+ * not happen — the file is still in the public bucket — so the caller can
+ * tell the contributor rather than imply it is gone. It never throws: by the
+ * time this runs the row has usually been written, and a file left behind
+ * must not turn a saved entry into an error page.
+ *
+ * "Did not happen" includes Storage reporting success while removing
+ * nothing, which is what it does for a path that does not exist or that the
+ * delete policy filtered out. So it is the count of removed files that is
+ * checked, not just the absence of an error.
+ *
+ * Each failure is logged with the path, under one tag, so a left-behind file
+ * can be found and removed by hand: search the logs for [photo-cleanup].
  *
  * The ownership check is not what stops one contributor deleting another's
  * photo — the Storage delete policy does, by folder. It is here so a URL that
- * belongs to someone else is never even sent, and so the seeded photographs in
- * public/entries/, which no contributor owns, are never candidates.
+ * belongs to someone else is never even sent.
  */
 export async function deletePhoto(
   userId: string,
   publicUrl: string | null,
-): Promise<void> {
-  if (!publicUrl) return;
+): Promise<boolean> {
+  if (!publicUrl) return true;
 
   const path = storagePathFromUrl(publicUrl);
-  if (!path || !path.startsWith(`${userId}/`)) return;
+  if (!path || !path.startsWith(`${userId}/`)) return true;
 
-  const supabase = await createSupabaseServerClient();
-  const { error } = await supabase.storage.from(BUCKET).remove([path]);
+  try {
+    const supabase = await createSupabaseServerClient();
+    const { data, error } = await supabase.storage.from(BUCKET).remove([path]);
 
-  if (error) {
-    // Worth knowing about in the server log; not worth a failed request.
-    console.error(`Could not remove the old photo at ${path}: ${error.message}`);
+    if (error || !data || data.length === 0) {
+      console.error(
+        `[photo-cleanup] ${BUCKET}/${path} was not removed: ${error ? error.message : "Storage removed nothing"}`,
+      );
+      return false;
+    }
+    return true;
+  } catch (cause) {
+    console.error(
+      `[photo-cleanup] ${BUCKET}/${path} was not removed: ${cause instanceof Error ? cause.message : String(cause)}`,
+    );
+    return false;
   }
 }
