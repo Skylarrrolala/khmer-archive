@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
-import { safeInternalPath } from "@/lib/auth";
+import { safeInternalPath } from "@/lib/safe-path";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 /**

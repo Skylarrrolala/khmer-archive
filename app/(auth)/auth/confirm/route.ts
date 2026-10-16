@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import type { NextRequest } from "next/server";
 
-import { safeInternalPath } from "@/lib/auth";
+import { safeInternalPath } from "@/lib/safe-path";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 /**

@@ -20,33 +20,10 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
  * by Postgres on every statement. If every function here were deleted, the
  * database would still refuse. What these give is a decent experience: a
  * redirect to the login page instead of an empty list or a failed write.
- */
-
-/**
- * Reduces a `?next=` value to a path inside this app, or to "/".
  *
- * Both the auth pages and the auth actions call this, so there is one rule
- * rather than two that can drift apart. The action is the one that matters —
- * it runs immediately before `redirect()`, so nothing can navigate anywhere
- * this function has not approved. The pages call it as well so a hostile value
- * is never echoed into the form's hidden input or its footer link in the first
- * place: harmless today, but the kind of thing that becomes a real hole the
- * moment someone reads that attribute and trusts it.
- *
- * What is rejected, and why:
- *   "https://evil.example"  absolute URL — the classic open redirect, used to
- *                           borrow this domain's credibility for phishing
- *   "//evil.example"        protocol-relative; a browser reads it as a host
- *   "/\evil.example"        some browsers normalise the backslash to a slash
- *   anything not starting with "/"
+ * The `?next=` redirect guard used to live here too. It is now
+ * lib/safe-path.ts, which has no imports, so it can be unit-tested on its own.
  */
-export function safeInternalPath(raw: string | string[] | undefined): string {
-  const next = (Array.isArray(raw) ? raw[0] : raw) ?? "";
-
-  if (!next.startsWith("/")) return "/";
-  if (next.startsWith("//") || next.startsWith("/\\")) return "/";
-  return next;
-}
 
 /**
  * The logged-in user, or null.

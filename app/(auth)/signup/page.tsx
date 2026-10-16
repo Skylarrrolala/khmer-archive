@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 
 import { signUp } from "@/app/(auth)/actions";
 import { AuthForm } from "@/components/AuthForm";
-import { safeInternalPath } from "@/lib/auth";
+import { safeInternalPath } from "@/lib/safe-path";
 
 export const metadata: Metadata = {
   title: "Create an account — The Khmer Living Archive",
