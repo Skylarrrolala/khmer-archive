@@ -1,11 +1,14 @@
 "use client";
 
 import Image from "next/image";
-import { useActionState } from "react";
+import { useActionState, type FormEvent } from "react";
 
 import { SubmitButton } from "@/components/SubmitButton";
 import {
+  ENTRY_FIELDS,
+  fieldProblem,
   initialEntryFormState,
+  type EntryFieldName,
   type EntryFormState,
   type EntryValues,
 } from "@/lib/entry-form";
@@ -72,7 +75,6 @@ export function EntryForm({
         <div className="grid gap-8 sm:grid-cols-2">
           <Field
             name="name_khmer"
-            label="Name in Khmer"
             hint="នំ… — the name as it is written."
             required
             defaultValue={value("name_khmer")}
@@ -84,7 +86,6 @@ export function EntryForm({
           />
           <Field
             name="name_english"
-            label="Name in English"
             hint="A transliteration, or a plain description."
             required
             defaultValue={value("name_english")}
@@ -94,14 +95,12 @@ export function EntryForm({
         <div className="grid gap-8 sm:grid-cols-2">
           <Field
             name="told_by"
-            label="Told by"
             hint="The person who shared it, by name, with their permission."
             required
             defaultValue={value("told_by")}
           />
           <Field
             name="context"
-            label="When it is made"
             hint="A festival, a ceremony, an everyday snack."
             required
             defaultValue={value("context")}
@@ -113,12 +112,13 @@ export function EntryForm({
             htmlFor="description"
             className="block text-xs uppercase tracking-[0.18em] text-muted"
           >
-            The story
+            {ENTRY_FIELDS.description.label}
           </label>
           <textarea
             id="description"
             name="description"
             required
+            onInput={checkField}
             rows={10}
             defaultValue={value("description")}
             className="w-full border border-line bg-accent-soft px-4 py-3 text-ink transition-colors placeholder:text-muted focus:border-accent focus:outline-none"
@@ -141,18 +141,26 @@ export function EntryForm({
   );
 }
 
+/**
+ * Marks a field invalid as it is typed in, with the words the server would
+ * use, so the browser refuses to submit and says so at the field. Nothing is
+ * cut off: `maxLength` would silently drop the end of a pasted story.
+ */
+function checkField(event: FormEvent<HTMLInputElement | HTMLTextAreaElement>) {
+  const field = event.currentTarget;
+  field.setCustomValidity(fieldProblem(field.name as EntryFieldName, field.value.trim()) ?? "");
+}
+
 /** One labelled text input. Four of them differ only in their strings. */
 function Field({
   name,
-  label,
   hint,
   required,
   defaultValue,
   inputClassName = "",
   lang,
 }: {
-  name: string;
-  label: string;
+  name: EntryFieldName;
   hint: string;
   required?: boolean;
   defaultValue?: string;
@@ -165,7 +173,7 @@ function Field({
         htmlFor={name}
         className="block text-xs uppercase tracking-[0.18em] text-muted"
       >
-        {label}
+        {ENTRY_FIELDS[name].label}
       </label>
       <input
         id={name}
@@ -173,6 +181,7 @@ function Field({
         type="text"
         lang={lang}
         required={required}
+        onInput={checkField}
         defaultValue={defaultValue}
         className={`w-full border border-line bg-accent-soft px-4 py-3 text-ink transition-colors placeholder:text-muted focus:border-accent focus:outline-none ${inputClassName}`}
       />
