@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
+import { authErrorKey, type AuthErrorKey } from "@/lib/auth-messages";
 import { safeInternalPath } from "@/lib/safe-path";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
@@ -17,17 +18,31 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
  *
  * The cost of that choice is error reporting. Without `useActionState` there is
  * no in-memory place to put a message, so a failure redirects back to the form
- * with `?error=` and the page renders it. That is why every error string here
- * is written for a human to read.
+ * with `?error=<key>`, and the page looks the key up in lib/auth-messages.ts.
+ * Supabase's own wording never reaches the page; unexpected errors go to the
+ * server log instead.
  *
  * Only a Server Action or a Route Handler may write cookies in the App Router,
  * which is precisely why sign-in lives here: `signInWithPassword` sets the
  * session cookies through the client built in lib/supabase/server.ts.
  */
 
-/** Bounce back to a form with a message a person can act on. */
-function backToForm(path: string, message: string, next: string): never {
-  const params = new URLSearchParams({ error: message });
+/**
+ * The message key for a Supabase Auth error. Errors a person can fix are
+ * expected; anything else (an outage, a code this does not know) is logged
+ * with what Supabase said, since the page will only say "try again".
+ */
+function refusal(step: string, error: { code?: string; status?: number; message: string }): AuthErrorKey {
+  const key = authErrorKey(error);
+  if (key === "unavailable") {
+    console.error(`[auth] ${step} failed (${error.status ?? "no status"} ${error.code ?? "no code"}): ${error.message}`);
+  }
+  return key;
+}
+
+/** Bounce back to a form with the key of a message a person can act on. */
+function backToForm(path: string, key: AuthErrorKey, next: string): never {
+  const params = new URLSearchParams({ error: key });
   if (next !== "/") params.set("next", next);
   redirect(`${path}?${params.toString()}`);
 }
@@ -38,7 +53,7 @@ export async function signIn(formData: FormData) {
   const next = safeInternalPath(String(formData.get("next") ?? ""));
 
   if (!email || !password) {
-    backToForm("/login", "Enter your email address and password.", next);
+    backToForm("/login", "missing_login", next);
   }
 
   const supabase = await createSupabaseServerClient();
@@ -46,12 +61,11 @@ export async function signIn(formData: FormData) {
 
   if (error) {
     /*
-     * Supabase's own message for a bad email and a bad password is the same
-     * ("Invalid login credentials"), and it is passed through unchanged on
-     * purpose. A friendlier message that distinguished the two would tell an
-     * attacker which email addresses have accounts in this archive.
+     * Supabase answers a bad email and a bad password with the same code,
+     * `invalid_credentials`, and both get the same message. One that told the
+     * two apart would tell an attacker which addresses have accounts here.
      */
-    backToForm("/login", error.message, next);
+    backToForm("/login", refusal("sign-in", error), next);
   }
 
   // The header renders the signed-in state, and it is on every route.
@@ -65,7 +79,7 @@ export async function signUp(formData: FormData) {
   const next = safeInternalPath(String(formData.get("next") ?? ""));
 
   if (!email || !password) {
-    backToForm("/signup", "Enter an email address and a password.", next);
+    backToForm("/signup", "missing_signup", next);
   }
 
   /*
@@ -75,7 +89,7 @@ export async function signUp(formData: FormData) {
    * this project's.
    */
   if (password.length < 8) {
-    backToForm("/signup", "Use a password of at least 8 characters.", next);
+    backToForm("/signup", "short_password", next);
   }
 
   /*
@@ -102,7 +116,16 @@ export async function signUp(formData: FormData) {
   });
 
   if (error) {
-    backToForm("/signup", error.message, next);
+    /*
+     * An address that already has an account ends where a new one does, on
+     * "check your email", so this form cannot be used to find out who has an
+     * account. Supabase does the same itself while email confirmation is on;
+     * these codes are what it says when confirmation is off.
+     */
+    if (error.code === "user_already_exists" || error.code === "email_exists") {
+      redirect("/login?pending=confirm");
+    }
+    backToForm("/signup", refusal("sign-up", error), next);
   }
 
   /*
@@ -121,7 +144,12 @@ export async function signUp(formData: FormData) {
 
 export async function signOut() {
   const supabase = await createSupabaseServerClient();
-  await supabase.auth.signOut();
+  const { error } = await supabase.auth.signOut();
+
+  // supabase-js clears this browser's session cookies even when the call to
+  // revoke the session fails, so the person is signed out here either way.
+  // What may not have happened is the server-side revocation: log it.
+  if (error) console.error(`[auth] sign-out: session not revoked (${error.status ?? "no status"} ${error.code ?? "no code"}): ${error.message}`);
 
   revalidatePath("/", "layout");
   redirect("/");

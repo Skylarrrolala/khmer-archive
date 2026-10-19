@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 
 import { signUp } from "@/app/(auth)/actions";
 import { AuthForm } from "@/components/AuthForm";
+import { authErrorMessage } from "@/lib/auth-messages";
 import { safeInternalPath } from "@/lib/safe-path";
 
 export const metadata: Metadata = {
@@ -29,7 +30,7 @@ export default async function SignUpPage({
       mode="signup"
       action={signUp}
       next={safeInternalPath(params.next)}
-      error={first(params.error) || undefined}
+      error={authErrorMessage(first(params.error))}
     />
   );
 }

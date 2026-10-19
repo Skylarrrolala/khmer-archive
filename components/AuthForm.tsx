@@ -12,7 +12,8 @@ import { SubmitButton } from "@/components/SubmitButton";
  * No `"use client"`, no React state, no `useActionState`. It is a plain
  * `<form action={serverAction}>`, so it submits and validates with JavaScript
  * disabled, exactly like SearchBar. The consequence is that a failed attempt
- * comes back as a redirect carrying `?error=`, which is what `error` renders.
+ * comes back as a redirect carrying `?error=<key>`; the page turns the key
+ * into the message that `error` renders.
  *
  * `autoComplete` is set deliberately: password managers key off these values,
  * and `new-password` on sign-up is what prompts one to offer a generated

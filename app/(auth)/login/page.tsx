@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 
 import { signIn } from "@/app/(auth)/actions";
 import { AuthForm } from "@/components/AuthForm";
+import { authErrorMessage } from "@/lib/auth-messages";
 import { safeInternalPath } from "@/lib/safe-path";
 
 export const metadata: Metadata = {
@@ -17,8 +18,10 @@ export const metadata: Metadata = {
  *   expired    opened a link Supabase would not accept (from /auth/confirm)
  */
 const NOTICES: Record<string, string> = {
+  // Shown whether or not the address already had an account, so it must be
+  // true either way, and must not say which.
   confirm:
-    "Account created. Open the confirmation link we emailed you to finish signing up.",
+    "Check your email for a link to finish signing up. If you already have an account with this address, sign in instead.",
   confirmed: "Your email is confirmed. Sign in to continue.",
   expired:
     "That confirmation link has expired or was already used. If you have confirmed your email, sign in; if not, sign up again for a new link.",
@@ -30,12 +33,12 @@ const NOTICES: Record<string, string> = {
  * `searchParams` is a Promise in the App Router and is awaited. Three values
  * arrive here, all of them from the URL and therefore untrusted:
  *
- *   error    a message from a failed attempt, put there by the server action
+ *   error    the key of a message from a failed attempt (lib/auth-messages.ts)
  *   pending  where an email confirmation stands — one of the NOTICES keys
  *   next     where to go once signed in
  *
- * `error` is rendered as text inside JSX, so React escapes it — a crafted
- * `?error=<script>` is displayed, not executed. `next` is never trusted here
+ * `error` is only ever a key: anything that is not one shows nothing, so a
+ * crafted link cannot put its own words on this page. `next` is never trusted here
  * either: it is passed back into the form and re-checked by `safeInternalPath` in the
  * action before any redirect uses it.
  */
@@ -53,7 +56,7 @@ export default async function LoginPage({
     (Array.isArray(v) ? v[0] : v) ?? "";
 
   const next = safeInternalPath(params.next);
-  const error = first(params.error) || undefined;
+  const error = authErrorMessage(first(params.error));
 
   /*
    * `Object.hasOwn` rather than a bare lookup, because `pending` comes from the
