@@ -44,6 +44,8 @@ export async function submitEntry(formData: FormData) {
     photoUrl = upload.url;
   }
 
+  // IF THE INSERT FAILS, THIS PHOTO IS LEFT ORPHANED IN STORAGE.
+  // SAVEENTRY CLEANS UP AFTER A FAILED WRITE. THIS DOES NOT.
   await createEntry({
     contributorId: user.id,
     ...read.fields,
