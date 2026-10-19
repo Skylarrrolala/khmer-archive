@@ -27,9 +27,12 @@ explicitly that the professor approved a stretch feature by name.
    upload), plus a "my entries" view.
 3. **Ownership** (Sprint 2) — contributors edit/delete ONLY their own
    entries, enforced with RLS. No admin panel, no cross-user editing.
-4. **Review workflow** (Sprint 3) — entries are created `pending` and
-   hidden from the public until a reviewer publishes them. Contributors
-   can see the status of their own submissions.
+4. **Review workflow** (Sprint 3) — not built yet. Its goal: entries are
+   held `pending`, hidden from the public, until a reviewer publishes them,
+   and contributors can see the status of their own submissions. Until
+   then Sprint 2's brief applies: an entry is public as soon as it is saved
+   (migration 0002). That is intended, not a bug; Sprint 3 brings review
+   back with a new migration.
 
 ## Hard rule: NO SCOPE ADDITIONS
 Do not suggest, scaffold, or build anything beyond the 4 features above
@@ -60,15 +63,19 @@ preemptively "while you're in there."
 > it and ask first.
 
 ## Data model (confirm before changing)
-`public.entries`, defined in `supabase/migrations/0001_init.sql`:
+`public.entries`, defined in `supabase/migrations/0001_init.sql` and
+tightened by `0002_sprint2_publish_on_submit.sql` (policies, limits and column
+privileges; no new fields):
 - `name_khmer` — Khmer name of the dessert
 - `name_english` — English/transliterated name or description
 - `told_by` — which grandparent shared it (or both)
 - `context` — when/why it's made (festival, daily life, special occasion)
 - `description` — the story or memory, ingredients/method if known
-- `photo_url` — nullable; present if the dessert is still made and
-  photographed
-- `status` — `pending` / `published` / `rejected`
+- `photo_url` — nullable in the schema, but since 0002 every published row
+  must have one, so every new entry has a photo. Only the one entry sent
+  before Sprint 2 has none, and it stays unpublished until its owner adds one.
+- `status` — `pending` / `published` / `rejected`. Since 0002 new and
+  edited entries are `published`; `rejected` is unused until Sprint 3.
 - `contributor_id` — who submitted it
 - `created_at`
 
@@ -118,10 +125,17 @@ minimal.
   each is a family photograph or licensed and credited.
 
 ## Current sprint focus
-Sprint 1 is complete: browse page, keyword search, and entry detail page,
-all reading published entries only. Next up is Sprint 2 — Supabase Auth
-sign-up/log-in, the submission form with photo upload, and the "my
-entries" view. No review-queue UI yet; that is Sprint 3.
+Sprint 1 is complete. Sprint 2 — accounts, submission with a photo, "my
+entries", and editing or deleting your own entries — is built on the
+`sprint2-integration` branch and tested locally, but is not live yet.
+Production still runs an earlier build (`345dad2`) on migration 0001, where
+new entries stay `pending`, until the steps in `docs/rollout-sprint2.md` are
+done. Under Sprint 2's brief an entry is public as soon as it is saved; there
+is no review step until Sprint 3. Current behavior, rules and known
+limitations: `docs/architecture.md`.
+`scripts/verify-rls.sh` is historical (it tests 0001 against production) and
+stops before doing anything. The last two commits on `smoother-motion`
+(`b012764`, `0aab375`) are deliberately not part of Sprint 2.
 
 ## Files AI can touch this session
 Sprint 2 will need: `/app/(auth)`, `/app/submit`, `/app/my-entries`,

@@ -1,5 +1,14 @@
 #!/usr/bin/env bash
 #
+# HISTORICAL — DO NOT RUN. Stopped on 19 October 2026.
+#
+# This is the 15 September check of the 0001 rules against the live project.
+# Migration 0002 changed those rules, so it now fails by design, and its
+# procedure asks for "Confirm email" to be turned off on production. It exits
+# before reading any settings or contacting Supabase, and is kept only as a
+# record of that run. For the current rules: `npm run test:db` locally, and
+# the two-account test in docs/rollout-sprint2.md on the live project.
+#
 # Exercises every Row Level Security policy in supabase/migrations/0001_init.sql
 # against the real Supabase project, and prints a pass/fail line for each.
 #
@@ -38,7 +47,12 @@
 # were broken, that delete would really remove a row; supabase/seed.sql
 # restores the seven researched entries if that ever happens.
 #
-# Exit codes: 0 all checks passed, 1 a check failed, 2 could not sign in.
+# Exit codes: 0 all checks passed, 1 a check failed, 2 could not sign in,
+# 3 historical: stopped before doing anything.
+
+echo "scripts/verify-rls.sh is historical: it tests migration 0001 against production, and stops here." >&2
+echo "Use 'npm run test:db' locally, and the two-account test in docs/rollout-sprint2.md." >&2
+exit 3
 
 set -uo pipefail
 

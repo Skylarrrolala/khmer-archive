@@ -83,9 +83,10 @@ npm test          # unit tests: validation, photo checks, auth messages, cleanup
 npm run test:db   # the RLS and constraint tests, in a throwaway local Postgres (needs Docker)
 ```
 
-`npm run test:db` never connects to Supabase. `scripts/verify-rls.sh` does: it
-runs against the live project, and it was written for 0001, so it no longer
-matches 0002. See the rollout checklist for the live test that replaces it.
+`npm run test:db` never connects to Supabase. `scripts/verify-rls.sh` is
+historical: it tested the 0001 rules against the live project, and now stops
+before doing anything. The live test that replaces it is in the rollout
+checklist.
 
 ### 6. Deploy to Vercel
 

@@ -2,14 +2,23 @@
 -- Rollback for supabase/migrations/0002_sprint2_publish_on_submit.sql
 --
 -- NOT a migration. It lives in docs/ so that `supabase db push` never runs it.
--- Run it only to undo 0002, and only after the app has been rolled back to a
--- build that expects 0001 (see docs/rollout-sprint2.md, "Rollback").
+--
+-- EMERGENCY USE ONLY. This is not a safe reset: it restores known security
+-- weaknesses that 0002 closed. Run it only if 0002 itself is causing harm and
+-- a forward fix cannot ship in time, only after the app has been rolled back
+-- to a build that expects 0001, and plan to re-apply 0002 as soon as possible
+-- (see docs/rollout-sprint2.md, "Rollback").
+--
+-- What it reopens:
+--   * the public photo bucket loses its size and type limits, so any
+--     signed-in user can host any file at the project's public Storage address;
+--   * anon and authenticated get every table privilege back: owners can
+--     write `id` and `created_at`, and TRUNCATE is granted again;
+--   * text loses its length and visible-text limits, and `photo_url` may
+--     point anywhere (under 0001's policies, only on an owner's hidden rows).
 --
 -- It returns the schema to exactly what 0001 created and changes no row:
--- entries published under 0002 stay published, and photos stay where they
--- are. It also reopens what 0002 closed: contributors can again write `id`,
--- `created_at` and `contributor_id`, and text and photos lose their limits.
--- A forward fix is usually the better choice.
+-- entries published under 0002 stay published, and photos stay where they are.
 --
 -- Tested on a local copy of the schema: after 0002 and then this file, the
 -- policies, constraints, default, privileges and bucket settings are the same

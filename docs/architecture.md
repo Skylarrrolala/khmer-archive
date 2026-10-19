@@ -25,7 +25,7 @@ browser  ->  app/(browse)/page.tsx  ->  lib/entries.ts  ->  lib/supabase/server.
 | --- | --- |
 | `supabase/migrations/0001_init.sql` | The base schema: the `entry_status` enum, the `entries` table, its indexes, every RLS policy, and the `entry-photos` storage bucket with its policies. Applied to the live project through the SQL Editor. |
 | `supabase/migrations/0002_sprint2_publish_on_submit.sql` | Sprint 2. Entries are published on save; the owner check in every policy is unchanged; column privileges protect `id`, `created_at` and `contributor_id`; text, photo and bucket limits. Changes no existing row, and fails as a whole if any row breaks a new rule. Not yet applied live — see `docs/rollout-sprint2.md`. |
-| `docs/rollback-0002.sql` | Undoes 0002, back to exactly 0001's rules. Kept out of `migrations/` so `supabase db push` never runs it. |
+| `docs/rollback-0002.sql` | Undoes 0002, back to exactly 0001's rules. Emergency use only: it restores weaknesses 0002 closed (see the rollout checklist, "Rollback"). Kept out of `migrations/` so `supabase db push` never runs it. |
 | `supabase/seed.sql` | The seven desserts, with ingredients, method, region and notes folded into `description`. The content is researched, not family testimony: every `told_by` holds `[SOURCE PENDING …]`, which the UI renders as a "Source pending verification" badge, so nothing on the page claims a source it does not have. Re-running the file clears the rows it owns (`contributor_id is null`) first, so it cannot double up. |
 
 ### App plumbing
@@ -89,7 +89,7 @@ browser  ->  app/(browse)/page.tsx  ->  lib/entries.ts  ->  lib/supabase/server.
 | --- | --- |
 | `tests/*.test.ts` | Unit tests, run by `npm test` with Node's built-in runner: the field rules (including a check that the limits still match 0002), photo signatures, auth messages, the photo-cleanup decisions, the redirect guard, the form state. |
 | `scripts/test-db.sh`, `tests/db/*.sql` | `npm run test:db`. Loads a Supabase stand-in (roles, `auth.uid()`, Storage, default grants), 0001, the seed, two contributors A and B, and 0002 into a throwaway Postgres container, then runs 133 checks through RLS as each role. Never connects to Supabase. |
-| `scripts/verify-rls.sh` | The check against the live project, written for 0001. It no longer matches 0002 — see "Evidence" below. |
+| `scripts/verify-rls.sh` | Historical: the 15 September check of the 0001 rules against the live project. It now stops before doing anything — see "Evidence" below. |
 
 ## How ownership enforcement actually works
 
@@ -301,8 +301,9 @@ policy above, and shipping it to the browser would undo all of it.
   required but cannot be checked by the app.
 - The seven researched entries still carry `[SOURCE PENDING …]`, and the
   provenance of the photos in `public/entries/` is not yet confirmed.
-- Vercel previews read and write the live database (their environment
-  variables pointed at it as of 22 September).
+- Vercel previews read and write the live database: the Supabase variables
+  target Production, Preview and Development (checked 19 October). Previews
+  are behind a Vercel login, and are not used for submitting.
 
 ### Evidence
 
@@ -343,6 +344,7 @@ codes, confirmation emails and redirect URLs; and the two-account test.
 **Live, earlier:** `scripts/verify-rls.sh` passed 14 of 14 against the live
 project on 15 September — the 0001 rules, not the current ones. It expects a
 new entry to land pending and inserts without a photo, so it fails by design
-after 0002; the rollout checklist's two-account test replaces it. A read-only
+after 0002; it now stops before doing anything, and the rollout checklist's
+two-account test replaces it. A read-only
 check on 25 September found the live schema matching 0001 exactly, with an
 empty migration history.
