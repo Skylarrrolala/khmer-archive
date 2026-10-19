@@ -13,14 +13,18 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
  * supabase/migrations/0001_init.sql are: a contributor may write only inside a
  * folder named after their own user id, and Postgres refuses anything else. A
  * caller who skipped this file entirely could not put a file in someone else's
- * folder. What is here is the size and type limit, which Storage does not know
- * about, and a legible error instead of a 500.
+ * folder. What is here is the size and type check, made before anything is
+ * uploaded (migration 0002 sets the same limits on the bucket), and a legible
+ * error instead of a 500.
  */
 
 const BUCKET = "entry-photos";
 
-/** 5 MB. A phone photo is comfortably under this; a video is not. */
-export const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
+/**
+ * 4 MiB, the same as the bucket's file_size_limit (migration 0002). The
+ * Server Action body limit in next.config.ts is sized to fit this.
+ */
+export const MAX_PHOTO_BYTES = 4 * 1024 * 1024;
 
 /**
  * The formats the archive accepts, mapped to the extension the stored file
@@ -63,7 +67,7 @@ export async function uploadPhoto(
   if (photo.size > MAX_PHOTO_BYTES) {
     return {
       ok: false,
-      error: "That photo is larger than 5 MB. Try a smaller version.",
+      error: "That photo is larger than 4 MB. Try a smaller version.",
     };
   }
 

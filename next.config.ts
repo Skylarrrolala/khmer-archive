@@ -19,6 +19,18 @@ const supabaseHost = process.env.NEXT_PUBLIC_SUPABASE_URL
   : undefined;
 
 const nextConfig: NextConfig = {
+  /*
+   * Next refuses a Server Action body over 1 MB by default, and the entry
+   * forms post the photo inside that body. 4.25mb is 4 MiB for the photo
+   * (MAX_PHOTO_BYTES in lib/photos.ts, and the bucket's limit) plus 256 KiB
+   * for the text fields and multipart framing. Vercel applies its own request
+   * limit before this one; raising this does not raise that.
+   */
+  experimental: {
+    serverActions: {
+      bodySizeLimit: "4.25mb",
+    },
+  },
   images: {
     remotePatterns: supabaseHost
       ? [
