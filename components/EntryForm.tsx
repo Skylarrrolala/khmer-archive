@@ -9,6 +9,7 @@ import {
   type EntryFormState,
   type EntryValues,
 } from "@/lib/entry-form";
+import { MAX_PHOTO_BYTES, PHOTO_TOO_LARGE } from "@/lib/photo-check";
 import type { Entry } from "@/lib/types";
 
 /**
@@ -226,6 +227,15 @@ function PhotoField({ currentUrl }: { currentUrl: string | null }) {
         type="file"
         accept="image/jpeg,image/png,image/webp"
         required={!currentUrl}
+        /* An early warning only; uploadPhoto checks again on the server. A
+           photo over the Server Action body limit fails before the action can
+           hand the text back, so the browser refuses to submit it at all. */
+        onChange={(event) => {
+          const input = event.currentTarget;
+          const tooLarge = (input.files?.[0]?.size ?? 0) > MAX_PHOTO_BYTES;
+          input.setCustomValidity(tooLarge ? PHOTO_TOO_LARGE : "");
+          if (tooLarge) input.reportValidity();
+        }}
         className="w-full border border-line bg-accent-soft px-4 py-3 text-sm text-ink file:mr-4 file:border-0 file:bg-accent file:px-4 file:py-2 file:text-xs file:uppercase file:tracking-[0.18em] file:text-on-accent focus:border-accent focus:outline-none"
       />
 

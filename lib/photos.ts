@@ -1,3 +1,4 @@
+import { MAX_PHOTO_BYTES, PHOTO_TOO_LARGE, photoFormat } from "@/lib/photo-check";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 /**
@@ -20,23 +21,6 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 const BUCKET = "entry-photos";
 
-/**
- * 4 MiB, the same as the bucket's file_size_limit (migration 0002). The
- * Server Action body limit in next.config.ts is sized to fit this.
- */
-export const MAX_PHOTO_BYTES = 4 * 1024 * 1024;
-
-/**
- * The formats the archive accepts, mapped to the extension the stored file
- * gets. The map is keyed on the MIME type the browser reports rather than on
- * the name the file arrived with, because a name is trivially renamed.
- */
-const ALLOWED_PHOTO_TYPES: Record<string, string> = {
-  "image/jpeg": "jpg",
-  "image/png": "png",
-  "image/webp": "webp",
-};
-
 /** Either a stored photo's public URL, or a sentence to show the contributor. */
 export type PhotoUpload =
   | { ok: true; url: string }
@@ -54,29 +38,31 @@ export type PhotoUpload =
  * that renders one way and sorts another, or simply collide with a file the
  * contributor uploaded last week and silently replace it. `upsert: false` is
  * the second half of that: a collision is an error, never an overwrite.
+ *
+ * The stored type and extension come from the file's opening bytes
+ * (lib/photo-check.ts), not from the type the browser declared.
  */
 export async function uploadPhoto(
   userId: string,
   photo: File,
 ): Promise<PhotoUpload> {
-  const extension = ALLOWED_PHOTO_TYPES[photo.type];
+  const format = photoFormat(new Uint8Array(await photo.slice(0, 12).arrayBuffer()));
 
-  if (!extension) {
+  if (!format) {
     return { ok: false, error: "Photos must be a JPEG, PNG or WebP image." };
   }
   if (photo.size > MAX_PHOTO_BYTES) {
-    return {
-      ok: false,
-      error: "That photo is larger than 4 MB. Try a smaller version.",
-    };
+    return { ok: false, error: PHOTO_TOO_LARGE };
   }
 
   const supabase = await createSupabaseServerClient();
-  const path = `${userId}/${crypto.randomUUID()}.${extension}`;
+  const path = `${userId}/${crypto.randomUUID()}.${format.extension}`;
 
+  // storage-js sends a Blob's own type and ignores `contentType`, so the
+  // detected type travels on the Blob rather than the one the browser declared.
   const { error } = await supabase.storage
     .from(BUCKET)
-    .upload(path, photo, { contentType: photo.type, upsert: false });
+    .upload(path, new Blob([photo], { type: format.type }), { upsert: false });
 
   if (error) {
     // Storage's own wording goes to the server log, not the page: it is

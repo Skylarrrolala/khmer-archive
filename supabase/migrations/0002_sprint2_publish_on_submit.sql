@@ -203,18 +203,22 @@ alter table public.entries
 -- -----------------------------------------------------------------------------
 -- 6. The photo bucket enforces its own limits.
 --
--- The app checks size and file content before uploading, but a request sent
--- straight to the Storage API skips the app. These two settings are checked
--- by the Storage service itself on every upload: at most 4 MiB, and only the
--- three image types the app accepts.
+-- The app checks a photo's size and its opening bytes before uploading, but
+-- a request sent straight to the Storage API skips the app. These two
+-- settings are checked by the Storage service itself on every upload: at
+-- most 4 MiB, and a declared type that is one of the three the app accepts.
 --
 -- 4 MiB rather than more because Vercel refuses any request body over
 -- 4.5 MB before it reaches the app, and the upload shares that body with the
 -- text fields and the form encoding. The app's own limit is set to match.
 --
--- The declared type is still not proof the bytes are an image; the app
--- checks the bytes themselves. This is the floor under that check, not a
--- replacement for it.
+-- The declared type is not proof the bytes are an image, and neither the
+-- bucket nor the database looks at the bytes. The app checks only the file's
+-- signature (its first bytes must be a JPEG, PNG or WebP header), not that
+-- the whole image decodes, and only for uploads made through the app. A
+-- contributor calling the Storage API directly can still store a non-image
+-- under an image type in their own folder, and point their own entry at it.
+-- This setting is the floor under the app's check, not a replacement for it.
 -- -----------------------------------------------------------------------------
 update storage.buckets
 set
