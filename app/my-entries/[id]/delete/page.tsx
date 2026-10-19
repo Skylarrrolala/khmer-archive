@@ -33,7 +33,7 @@ export default async function DeleteEntryPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ error?: string | string[] }>;
+  searchParams: Promise<{ failed?: string | string[] }>;
 }) {
   const { id } = await params;
   const user = await requireUser(`/my-entries/${id}/delete`);
@@ -43,8 +43,8 @@ export default async function DeleteEntryPage({
   if (!entry) notFound();
 
   const query = await searchParams;
-  const raw = query.error;
-  const error = (Array.isArray(raw) ? raw[0] : raw) ?? "";
+  const raw = query.failed;
+  const failed = (Array.isArray(raw) ? raw[0] : raw) === "1";
 
   const khmerPending = isPlaceholder(entry.name_khmer);
 
@@ -65,11 +65,12 @@ export default async function DeleteEntryPage({
         Delete this entry?
       </h1>
 
-      {/* A refusal from the delete policy, said plainly. Escaped by React on
-          render, so a crafted ?error= is shown, not run. */}
-      {error ? (
+      {/* A fixed sentence chosen by a flag. What the database said is in the
+          server log; neither it nor anything typed into the URL is shown. */}
+      {failed ? (
         <p className="mt-8 border border-accent bg-accent-soft px-4 py-3 text-sm text-accent">
-          {error}
+          The entry was not deleted: something went wrong on our side. Please
+          try again in a moment.
         </p>
       ) : null}
 

@@ -224,22 +224,6 @@ export async function getMyEntry(
 }
 
 /**
- * A Postgres permission denial, as opposed to a query that simply matched
- * nothing.
- *
- * 42501 is `insufficient_privilege` — what Postgres raises when a row would
- * violate a policy's `with check`, or when a statement writes a column the
- * role has no privilege for (migration 0002 makes `contributor_id`, `id` and
- * `created_at` unwritable). It is worth telling apart from the zero-row case: one means
- * "you may not write that", the other means "there is no such row of yours",
- * and a contributor shown the wrong one of those goes looking in the wrong
- * place.
- */
-function isPermissionDenied(code?: string): boolean {
-  return code === "42501";
-}
-
-/**
  * Rewrites one entry. The edited entry is public as soon as this returns.
  *
  * There is no ownership check in this function, and that is the point. The
@@ -314,6 +298,9 @@ export async function updateEntry(
  * The deleted row comes back because it is the last chance to read its
  * `photo_url` — afterwards there is nothing left to ask, and the file would
  * stay in Storage with nothing pointing at it.
+ *
+ * Any other database error throws an EntryWriteError carrying only the
+ * Postgres code, like createEntry and updateEntry.
  */
 export async function deleteEntry(id: string): Promise<Entry | null> {
   const supabase = await createSupabaseServerClient();
@@ -327,13 +314,9 @@ export async function deleteEntry(id: string): Promise<Entry | null> {
 
   if (error) {
     if (error.code === "22P02") return null;
-    if (isPermissionDenied(error.code)) {
-      throw new Error(
-        "That entry could not be deleted: an entry can only be deleted by " +
-          "the contributor who submitted it.",
-      );
-    }
-    throw new Error(`Could not delete the entry: ${error.message}`);
+    // What Postgres said stays in the server log; the page gets the code only.
+    console.error(`[entries] delete refused (${error.code}): ${error.message}`);
+    throw new EntryWriteError(error.code);
   }
 
   return data;

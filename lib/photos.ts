@@ -109,9 +109,11 @@ export function storagePathFromUrl(publicUrl: string): string | null {
  * contributor's to remove (no URL, or one of the seeded photographs in
  * public/entries/). Resolves to false when a removal was attempted and did
  * not happen — the file is still in the public bucket — so the caller can
- * tell the contributor rather than imply it is gone. It never throws: by the
- * time this runs the row has usually been written, and a file left behind
- * must not turn a saved entry into an error page.
+ * tell the contributor rather than imply it is gone. It never throws, whether
+ * Storage returns an error or something throws (a dropped connection, a URL
+ * that will not decode): by the time this runs the row has usually been
+ * written or deleted, and a file left behind must not turn that into an
+ * error page.
  *
  * "Did not happen" includes Storage reporting success while removing
  * nothing, which is what it does for a path that does not exist or that the
@@ -131,10 +133,12 @@ export async function deletePhoto(
 ): Promise<boolean> {
   if (!publicUrl) return true;
 
-  const path = storagePathFromUrl(publicUrl);
-  if (!path || !path.startsWith(`${userId}/`)) return true;
-
+  let path: string | null = null;
   try {
+    // Inside the try: decodeURIComponent throws on a broken %-escape.
+    path = storagePathFromUrl(publicUrl);
+    if (!path || !path.startsWith(`${userId}/`)) return true;
+
     const supabase = await createSupabaseServerClient();
     const { data, error } = await supabase.storage.from(BUCKET).remove([path]);
 
@@ -147,7 +151,7 @@ export async function deletePhoto(
     return true;
   } catch (cause) {
     console.error(
-      `[photo-cleanup] ${BUCKET}/${path} was not removed: ${cause instanceof Error ? cause.message : String(cause)}`,
+      `[photo-cleanup] ${path ? `${BUCKET}/${path}` : publicUrl} was not removed: ${cause instanceof Error ? cause.message : String(cause)}`,
     );
     return false;
   }

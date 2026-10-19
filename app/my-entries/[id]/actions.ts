@@ -13,7 +13,7 @@ import {
 } from "@/lib/entry-form";
 import { deleteEntry, getMyEntry, updateEntry } from "@/lib/entries";
 import { deletePhoto, uploadPhoto } from "@/lib/photos";
-import { saveFailureMessage, saveWithPhoto } from "@/lib/save-with-photo";
+import { EntryWriteError, saveFailureMessage, saveWithPhoto } from "@/lib/save-with-photo";
 
 /**
  * Editing and deleting an entry you own.
@@ -119,8 +119,14 @@ export async function saveEntry(
  *
  * `deleteEntry` hands back the row it removed, which is the only chance to
  * read its `photo_url` — afterwards there is nothing left to ask. A row that
- * comes back null was either already gone or was never this contributor's;
- * both mean the same thing to them, and both end on the same page.
+ * comes back null was either already gone or was never this contributor's
+ * (the delete policy filtered it out); either way nothing was deleted, and
+ * the list page says so rather than claiming success.
+ *
+ * A database error goes back to the delete page as a flag, not as text: the
+ * page shows a fixed sentence, so nothing Postgres says reaches the browser.
+ * The same goes for a photo that could not be removed after the row was: the
+ * deletion stands, and a flag adds one plain sentence saying so.
  */
 export async function removeEntry(id: string) {
   const user = await requireUser(`/my-entries/${id}/delete`);
@@ -129,15 +135,19 @@ export async function removeEntry(id: string) {
   try {
     deleted = await deleteEntry(id);
   } catch (cause) {
-    const message =
-      cause instanceof Error ? cause.message : "That entry could not be deleted.";
-    redirect(`/my-entries/${id}/delete?error=${encodeURIComponent(message)}`);
+    // deleteEntry logged a database refusal itself; anything else is logged here.
+    if (!(cause instanceof EntryWriteError)) console.error("[entries] delete failed:", cause);
+    redirect(`/my-entries/${id}/delete?failed=1`);
   }
 
-  if (deleted) await deletePhoto(user.id, deleted.photo_url);
+  // Nothing changed, so there is nothing to refresh either.
+  if (!deleted) redirect("/my-entries?unchanged=1");
+
+  // deletePhoto logs a failure as [photo-cleanup] and never throws.
+  const photoRemoved = await deletePhoto(user.id, deleted.photo_url);
 
   revalidatePath("/my-entries");
   revalidatePath("/");
   revalidatePath(`/entries/${id}`);
-  redirect("/my-entries?deleted=1");
+  redirect(photoRemoved ? "/my-entries?deleted=1" : "/my-entries?deleted=1&oldphoto=kept");
 }

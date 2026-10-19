@@ -204,11 +204,15 @@ function noticeFor(params: {
       : "Your changes were saved and are now public.";
   }
   if (flag(params.unchanged)) {
-    // An edit that matched no row. Saying "saved" here would be false.
-    return "Nothing was saved: that entry no longer exists, or it is not yours to edit.";
+    // An edit or a delete that matched no row. Claiming success would be false.
+    return "Nothing was changed: that entry no longer exists, or it is not yours.";
   }
   if (flag(params.deleted)) {
-    return "The entry was deleted.";
+    // As with an edit, the deletion stands either way; the second half only
+    // says that its photo is still sitting in storage.
+    return first(params.oldphoto) === "kept"
+      ? "The entry was deleted, but its photo could not be removed from storage."
+      : "The entry was deleted.";
   }
 
   return null;
