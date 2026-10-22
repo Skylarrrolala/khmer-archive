@@ -193,13 +193,13 @@ function Field({
 /**
  * The photograph: required on a new entry, replaceable on an existing one.
  *
- * Required because Sprint 2's brief asks for text plus at least one photo,
- * and an entry is public the moment it is saved. Migration 0002 enforces the
- * same rule in the database — no published row without a photo — so the
- * `required` attribute here is only a hint; the server actions check it too.
+ * Required because the brief asks for text plus at least one photo.
+ * Migration 0003 enforces the same rule in the database — no new or edited
+ * entry without a photo — so the `required` attribute here is only a hint;
+ * the server actions check it too.
  *
  * On an entry that already has one, the choice is two-way — keep or replace.
- * There is no "remove": a published entry cannot be left without a photo. An
+ * There is no "remove": an entry cannot be left without a photo. An
  * empty file input means "keep", because that is also what the form sends
  * when someone edits the spelling of a name and touches nothing else.
  */

@@ -37,15 +37,15 @@ export default async function SubmitPage() {
       </h1>
 
       <p className="mt-5 max-w-xl text-sm leading-relaxed text-muted">
-        Your entry appears in the public archive as soon as you publish it,
-        credited to the person you name below. You can edit or delete it any
-        time from your entries.
+        A reviewer reads every entry before it appears in the public archive,
+        credited to the person you name below. You can follow its status, and
+        edit or delete it, from your entries.
       </p>
 
       <EntryForm
         action={submitEntry}
-        submitLabel="Publish entry"
-        pendingLabel="Publishing…"
+        submitLabel="Submit for review"
+        pendingLabel="Submitting…"
       />
     </section>
   );

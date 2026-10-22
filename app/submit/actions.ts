@@ -18,11 +18,11 @@ import { EntryWriteError, saveFailureMessage, saveWithPhoto } from "@/lib/save-w
 /**
  * Submitting one dessert to the archive.
  *
- * A saved entry is public immediately — Sprint 2 has no review step — so it
- * must carry a photograph: the brief asks for text plus at least one photo.
- * That is checked here first, so a contributor is told before anything is
- * uploaded, and it is enforced again by migration 0002, which refuses any
- * published row without a photo.
+ * A saved entry waits for a reviewer before it is public (migration 0003).
+ * It must carry a photograph: the brief asks for text plus at least one
+ * photo. That is checked here first, so a contributor is told before
+ * anything is uploaded, and it is enforced again by 0003's insert policy,
+ * which refuses a new row without one.
  *
  * Used with `useActionState` (see components/EntryForm.tsx): a failure
  * returns the message and the text exactly as typed, so the form comes back
@@ -76,10 +76,7 @@ export async function submitEntry(
     return formFailure(previous, saveFailureMessage("new", outcome), values);
   }
 
-  // The new entry is public now, so the archive's front page and the entry's
-  // own page change, as well as "my entries".
-  revalidatePath("/");
-  revalidatePath(`/entries/${outcome.value.id}`);
+  // The new entry is pending, so only "my entries" changes.
   revalidatePath("/my-entries");
   redirect("/my-entries?submitted=1");
 }
