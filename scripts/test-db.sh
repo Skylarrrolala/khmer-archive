@@ -18,6 +18,9 @@
 #        tests/db/fixtures.sql             accounts A and B, one older pending row
 #        supabase/migrations/0002_*.sql    in one transaction, as in production
 #        tests/db/0002-ownership.test.sql
+#        a snapshot of every row, then
+#        supabase/migrations/0003_*.sql    in one transaction, as in production
+#        tests/db/0003-review-gate.test.sql on the rows 0002's tests left
 #   3. On exit, pass or fail, removes that container and its data volume.
 #      Nothing else in Docker is touched.
 #
@@ -107,15 +110,31 @@ load "fixtures"            "$ROOT/tests/db/fixtures.sql"
 MIGRATION=$(ls "$ROOT"/supabase/migrations/0002_*.sql)
 load "$(basename "$MIGRATION") (single transaction)" "$MIGRATION" --single-transaction
 
-echo
-echo "== tests =="
 # Assertions arrive as NOTICEs ("ok N - ..."); a failure is an ERROR that
 # stops the run. Query results go to /dev/null so only the assertions and
 # the section headings print. Strip psql's "psql:<stdin>:LINE:" and
 # "NOTICE:" prefixes.
-psql_in -o /dev/null -f - < "$ROOT/tests/db/0002-ownership.test.sql" 2>&1 \
-  | sed -E 's/^psql:<stdin>:[0-9]+: //; s/^NOTICE:  //'
-status=${PIPESTATUS[0]}
+run_tests() {
+  echo
+  echo "== tests: $(basename "$1") =="
+  psql_in -o /dev/null -f - < "$1" 2>&1 \
+    | sed -E 's/^psql:<stdin>:[0-9]+: //; s/^NOTICE:  //'
+  return "${PIPESTATUS[0]}"
+}
+
+run_tests "$ROOT/tests/db/0002-ownership.test.sql"
+status=$?
+
+if [ "$status" -eq 0 ]; then
+  echo
+  echo "== setup: 0003 =="
+  # Every row as it stands before 0003, so its tests can prove it changed none.
+  psql_in -c "insert into tests.snapshots (label, hash) select 'before 0003:' || e.id, md5(e::text) from public.entries e" >/dev/null || exit 1
+  MIGRATION=$(ls "$ROOT"/supabase/migrations/0003_*.sql)
+  load "$(basename "$MIGRATION") (single transaction)" "$MIGRATION" --single-transaction
+  run_tests "$ROOT/tests/db/0003-review-gate.test.sql"
+  status=$?
+fi
 
 echo
 if [ "$status" -eq 0 ]; then
