@@ -1,13 +1,13 @@
 /**
  * Shared TypeScript shapes for the archive.
  *
- * These mirror `supabase/migrations/0001_init.sql` by hand. Keeping them in
+ * These mirror the migrations in `supabase/migrations/` by hand. Keeping them in
  * one file means that if the table changes, there is exactly one place in the
  * app to change with it.
  */
 
-/** Matches the `entry_status` enum in Postgres. */
-export type EntryStatus = "pending" | "published" | "rejected";
+/** Matches the `entry_status` enum in Postgres, as migration 0003 left it. */
+export type EntryStatus = "pending" | "published" | "returned";
 
 /** One dessert — one row of `public.entries`. */
 export type Entry = {

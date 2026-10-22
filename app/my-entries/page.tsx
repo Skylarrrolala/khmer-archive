@@ -16,10 +16,10 @@ export const dynamic = "force-dynamic";
 /**
  * Everything this contributor has submitted, with where it stands.
  *
- * Since Sprint 2 every new entry is published on submit, so the only
- * unpublished rows left are ones sent before that. This is the one page that
- * can show such a row, and it is worth being precise about why that is safe.
- * It is not because of the
+ * Since Sprint 3 every new or edited entry waits for review, so this is where
+ * a contributor sees whether it is pending, published or returned. It is the
+ * one page that shows unpublished rows to their contributor, and it is worth
+ * being precise about why that is safe. It is not because of the
  * `requireUser` call at the top — that only decides whether to render. It is
  * because `getMyEntries` runs as this user's session, and the RLS policy
  * "contributors can read their own entries" is what makes Postgres willing to
@@ -95,7 +95,7 @@ export default async function MyEntriesPage({
  *
  * Deliberately not <EntryCard />. That component is built for the public grid,
  * where every row is published and the whole card links to its detail page.
- * Here a row may be an older, unpublished entry, which has no public page —
+ * Here a row may be pending or returned, which has no public page —
  * `getPublishedEntry` 404s on it, on purpose — so the "View" link is shown only
  * for published rows.
  */
@@ -194,14 +194,19 @@ function noticeFor(params: {
   const flag = (value: string | string[] | undefined) => first(value) === "1";
 
   if (flag(params.submitted)) {
-    return "Thank you — your entry is now public in the archive.";
+    return "Thank you — your entry was sent for review. It will appear in the public archive once a reviewer publishes it.";
   }
-  if (flag(params.updated)) {
-    // The save stands either way; the second sentence only says that the
-    // photo it replaced is still sitting in storage.
+  const updated = first(params.updated);
+  if (updated === "pending" || updated === "published") {
+    // The save stands either way; the last sentence only says that the photo
+    // it replaced is still sitting in storage.
+    const saved =
+      updated === "published"
+        ? "Your changes were saved and are public."
+        : "Your changes were saved and sent for review. The entry is not public until a reviewer publishes it.";
     return first(params.oldphoto) === "kept"
-      ? "Your changes were saved and are now public. The photo you replaced could not be removed from storage."
-      : "Your changes were saved and are now public.";
+      ? `${saved} The photo you replaced could not be removed from storage.`
+      : saved;
   }
   if (flag(params.unchanged)) {
     // An edit or a delete that matched no row. Claiming success would be false.
@@ -219,25 +224,24 @@ function noticeFor(params: {
 }
 
 /**
- * Whether an entry is public.
+ * Where an entry stands in review.
  *
- * The `entry_status` enum keeps three states, but Sprint 2 has no review, so
- * the only distinction a contributor needs is public or not. New and edited
- * entries are always published; "Not public" can only be an entry sent before
- * Sprint 2. Colour alone does not carry the meaning — each badge says its own
- * words — because a colour difference is exactly what some readers cannot see.
+ * A returned entry has come back to its contributor, who can edit it to send
+ * it for review again. Colour alone does not carry the meaning — each badge
+ * says its own words — because a colour difference is exactly what some
+ * readers cannot see.
  */
 function StatusBadge({ status }: { status: EntryStatus }) {
   const label: Record<EntryStatus, string> = {
-    pending: "Not public",
+    pending: "Pending",
     published: "Published",
-    rejected: "Not public",
+    returned: "Returned",
   };
 
   const tone: Record<EntryStatus, string> = {
     pending: "border-line text-muted",
     published: "border-accent text-accent",
-    rejected: "border-line text-muted",
+    returned: "border-line text-muted",
   };
 
   return (
