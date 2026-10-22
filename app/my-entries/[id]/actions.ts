@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
-import { requireUser } from "@/lib/auth";
+import { isReviewer, requireUser } from "@/lib/auth";
 import {
   entryValues,
   formFailure,
@@ -30,14 +30,14 @@ import { EntryWriteError, saveFailureMessage, saveWithPhoto } from "@/lib/save-w
  */
 
 /**
- * Rewrites an entry. The result is public as soon as it is saved.
+ * Rewrites an entry and sends it back for review. A reviewer's edit keeps
+ * their published entry published.
  *
- * The photograph can be replaced but not removed: a published entry must
- * have one (migration 0002 refuses a published row without a photo), and
- * saving an edit publishes the entry. A chosen file replaces the current
- * photo; an empty file input keeps it, because an empty input is also what an
- * untouched form sends. The one case with no photo to keep is an entry
- * submitted before Sprint 2 that never had one — saving it needs a photo.
+ * The photograph can be replaced but not removed: migration 0003's update
+ * policy refuses an edited row without one. A chosen file replaces the
+ * current photo; an empty file input keeps it, because an empty input is also
+ * what an untouched form sends. The one case with no photo to keep is an
+ * entry submitted before Sprint 2 that never had one — saving it needs a photo.
  *
  * Used with `useActionState`, like submitting: a failure comes back to the
  * form with the text as typed; success and "no such entry of yours" redirect.
@@ -68,15 +68,20 @@ export async function saveEntry(
   if (!photo && !current.photo_url) {
     return formFailure(
       previous,
-      "Add a photograph of the dessert. An entry needs one to be public.",
+      "Add a photograph of the dessert. Every entry needs one.",
       values,
     );
   }
 
+  // Only a reviewer may leave their published entry published; any other
+  // edit goes back for review. The update policy refuses anything else.
+  const status =
+    current.status === "published" && (await isReviewer()) ? "published" : "pending";
+
   const outcome = await saveWithPhoto({
     upload: photo ? () => uploadPhoto(user.id, photo) : null,
     write: (newPhotoUrl) =>
-      updateEntry(id, { ...read.fields, photoUrl: newPhotoUrl ?? current.photo_url }),
+      updateEntry(id, { ...read.fields, photoUrl: newPhotoUrl ?? current.photo_url, status }),
     removeUploaded: (url) => deletePhoto(user.id, url),
   });
 
@@ -106,12 +111,13 @@ export async function saveEntry(
       ? await deletePhoto(user.id, current.photo_url)
       : true;
 
-  // The edit is public now, so the browse page and the entry's own page
-  // change, not only "my entries".
+  // A published entry has either changed in public or left it, so the browse
+  // page and the entry's own page change, not only "my entries".
   revalidatePath("/my-entries");
   revalidatePath("/");
   revalidatePath(`/entries/${id}`);
-  redirect(oldPhotoRemoved ? "/my-entries?updated=1" : "/my-entries?updated=1&oldphoto=kept");
+  const done = `/my-entries?updated=${status}`;
+  redirect(oldPhotoRemoved ? done : `${done}&oldphoto=kept`);
 }
 
 /**

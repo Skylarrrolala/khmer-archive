@@ -4,7 +4,7 @@ import type { Metadata } from "next";
 
 import { saveEntry } from "@/app/my-entries/[id]/actions";
 import { EntryForm } from "@/components/EntryForm";
-import { requireUser } from "@/lib/auth";
+import { isReviewer, requireUser } from "@/lib/auth";
 import { getMyEntry } from "@/lib/entries";
 
 export const metadata: Metadata = {
@@ -40,6 +40,9 @@ export default async function EditEntryPage({
 
   if (!entry) notFound();
 
+  // The same rule saveEntry applies: only a reviewer's published entry stays public.
+  const staysPublic = entry.status === "published" && (await isReviewer());
+
   return (
     <section className="mx-auto max-w-3xl px-6 py-16 lg:py-20">
       <Link
@@ -58,20 +61,22 @@ export default async function EditEntryPage({
       </h1>
 
       {/*
-        Saving always publishes: since migration 0002 the update policy only
-        accepts a row that comes out published. For a published entry that
-        changes nothing. For an entry submitted before Sprint 2 that was never
-        published, saving is what makes it public — said plainly, before the
-        form, because it is the one consequence a contributor might not expect.
+        Saving sends an entry for review: since migration 0003 the update
+        policy accepts only a pending row from a contributor. For a published
+        entry that means it leaves the archive until it is published again —
+        said plainly, before the form, because it is the one consequence a
+        contributor might not expect.
       */}
-      {entry.status === "published" ? (
+      {staysPublic ? (
         <p className="mt-5 max-w-xl text-sm leading-relaxed text-muted">
           Changes you save appear in the public archive straight away.
         </p>
       ) : (
         <p className="mt-8 border border-accent bg-accent-soft px-4 py-3 text-sm text-accent">
-          This entry is not public yet. Saving it publishes it to the archive,
-          and it needs a photograph first.
+          {entry.status === "published"
+            ? "Saving sends your changes to a reviewer. The entry leaves the public archive until it is published again."
+            : "This entry is not public. Saving sends it to a reviewer."}
+          {entry.photo_url ? null : " It needs a photograph first."}
         </p>
       )}
 
@@ -80,7 +85,7 @@ export default async function EditEntryPage({
           own state, not the URL. */}
       <EntryForm
         action={saveEntry.bind(null, entry.id)}
-        submitLabel={entry.status === "published" ? "Save changes" : "Save and publish"}
+        submitLabel={staysPublic ? "Save changes" : "Save and send for review"}
         pendingLabel="Saving…"
         entry={entry}
       />

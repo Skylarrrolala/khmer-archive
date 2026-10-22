@@ -136,8 +136,8 @@ export async function getMyEntries(contributorId: string): Promise<Entry[]> {
 }
 
 /**
- * Creates one entry, owned by the contributor who submitted it. It is public
- * the moment this returns: Sprint 2 has no review step.
+ * Creates one entry, owned by the contributor who submitted it. It waits,
+ * hidden from the public, until a reviewer publishes it.
  *
  * `contributor_id` is set here rather than taken from the form. That is belt
  * and braces: the insert policy's `with check` already refuses any row whose
@@ -146,8 +146,9 @@ export async function getMyEntries(contributorId: string): Promise<Entry[]> {
  *
  * `status` is not sent at all, and must not be. Migration 0002 gives
  * contributors no privilege to write it on insert, so the column's default,
- * 'published', always applies. Sending it, even as 'published', would be
- * refused. The same goes for `id` and `created_at`: the database sets them.
+ * 'pending' since migration 0003, always applies. Sending it, even as
+ * 'pending', would be refused. The same goes for `id` and `created_at`: the
+ * database sets them.
  */
 export async function createEntry(input: {
   contributorId: string;
@@ -188,17 +189,17 @@ export async function createEntry(input: {
  *
  * The counterpart to `getPublishedEntry`. That one adds
  * `.eq("status","published")` so the public can only reach published rows;
- * this one does not, because a contributor may still have an unpublished row
- * from before Sprint 2 published entries on submit, and has to be able to load
- * it to edit or delete it.
+ * this one does not, because a contributor's own entries may be pending or
+ * returned, and they have to be able to load them to edit or delete them.
  *
  * What keeps that from becoming a hole is that nothing here checks ownership
- * either. Both SELECT policies apply to this query — Postgres ORs them — so
- * the rows it can return are "published" plus "mine". The `contributor_id`
- * filter narrows that to "mine", and a contributor asking for an id that is
- * pending and someone else's gets null: the row is outside both policies, so
- * Postgres never releases it. The edit page turns that null into a 404, which
- * is the same 404 a nonexistent id gets.
+ * either. The SELECT policies apply to this query — Postgres ORs them — so
+ * the rows it can return are "published" plus "mine" (plus everything, for a
+ * reviewer). The `contributor_id` filter narrows that to "mine", so even a
+ * reviewer opens only their own entries for editing, and a contributor asking
+ * for an id that is pending and someone else's gets null: Postgres never
+ * releases it. The edit page turns that null into a 404, which is the same
+ * 404 a nonexistent id gets.
  */
 export async function getMyEntry(
   id: string,
@@ -224,7 +225,7 @@ export async function getMyEntry(
 }
 
 /**
- * Rewrites one entry. The edited entry is public as soon as this returns.
+ * Rewrites one entry, with the status the caller asks for.
  *
  * There is no ownership check in this function, and that is the point. The
  * only thing standing between this update and somebody else's row is the
@@ -235,11 +236,10 @@ export async function getMyEntry(
  * app is where ownership is decided. Ask for the row by id; let the database
  * say whether it is yours.
  *
- * `status: 'published'` is likewise not a decision made here — since
- * migration 0002 it is the only value the update policy's `with check`
- * accepts. For a published entry it changes nothing; for the one older entry
- * that was submitted before Sprint 2 and is still unpublished, saving an edit
- * is what publishes it (and 0002 refuses that unless it has a photo).
+ * `status` is likewise not decided here. Since migration 0003 the update
+ * policy's `with check` accepts only 'pending' from a contributor, so an edit
+ * goes back for review; a reviewer's own entry may stay 'published'. The
+ * caller asks for one or the other, and Postgres refuses anything else.
  * `contributor_id`, `id` and `created_at` are never written: 0002 gives
  * contributors no privilege to, and the safest column is the one no
  * statement touches.
@@ -256,6 +256,7 @@ export async function updateEntry(
     context: string;
     description: string;
     photoUrl: string | null;
+    status: "pending" | "published";
   },
 ): Promise<Entry | null> {
   const supabase = await createSupabaseServerClient();
@@ -269,7 +270,7 @@ export async function updateEntry(
       context: fields.context,
       description: fields.description,
       photo_url: fields.photoUrl,
-      status: "published",
+      status: fields.status,
     })
     .eq("id", id)
     .select()
