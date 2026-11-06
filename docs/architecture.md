@@ -329,6 +329,21 @@ Every signed-in account, reviewers included, has three limits:
 - A reviewer's own entry is published by another reviewer, or by the founder in
   the dashboard, which no policy applies to.
 
+### Review history (0008)
+
+- A trigger on `entries` adds a row to `review_history` for every status an
+  entry is given: when it is created, when a reviewer publishes or returns it,
+  when an edit sends it back for review, and when the founder changes it in
+  the dashboard. Each row has the entry, its contributor, the old and new
+  status, who made the change (no user means the founder) and when. An edit
+  that leaves the status as it was adds nothing, and a change that is refused
+  or rolled back takes its row with it.
+- Only the founder reads it, in the dashboard. No API role can read, add to,
+  change or delete it, reviewers included.
+- It holds ids, statuses and times, never an entry's text, credit or photo,
+  and it is kept when an entry or an account is deleted.
+- It starts with migration 0008: earlier changes were never recorded.
+
 
 There is no review step in Sprint 2, and no policy lets a contributor set any
 status but `published`. A reviewer role, and the hiding of new entries until

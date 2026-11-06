@@ -34,6 +34,9 @@
 #        a snapshot of every row, then
 #        supabase/migrations/0007_*.sql    in one transaction, as in production
 #        tests/db/0007-review-separation.test.sql
+#        a snapshot of every row, then
+#        supabase/migrations/0008_*.sql    in one transaction, as in production
+#        tests/db/0008-review-history.test.sql
 #   3. On exit, pass or fail, removes that container and its data volume.
 #      Nothing else in Docker is touched.
 #
@@ -192,6 +195,16 @@ if [ "$status" -eq 0 ]; then
   MIGRATION=$(ls "$ROOT"/supabase/migrations/0007_*.sql)
   load "$(basename "$MIGRATION") (single transaction)" "$MIGRATION" --single-transaction
   run_tests "$ROOT/tests/db/0007-review-separation.test.sql"
+  status=$?
+fi
+
+if [ "$status" -eq 0 ]; then
+  echo
+  echo "== setup: 0008 =="
+  psql_in -c "insert into tests.snapshots (label, hash) select 'before 0008:' || e.id, md5(e::text) from public.entries e" >/dev/null || exit 1
+  MIGRATION=$(ls "$ROOT"/supabase/migrations/0008_*.sql)
+  load "$(basename "$MIGRATION") (single transaction)" "$MIGRATION" --single-transaction
+  run_tests "$ROOT/tests/db/0008-review-history.test.sql"
   status=$?
 fi
 
