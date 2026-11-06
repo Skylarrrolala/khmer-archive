@@ -79,7 +79,7 @@ export async function saveEntry(
     current.status === "published" && (await isReviewer()) ? "published" : "pending";
 
   const outcome = await saveWithPhoto({
-    upload: photo ? () => uploadPhoto(user.id, photo) : null,
+    upload: photo ? () => uploadPhoto(user.id, photo, "edit") : null,
     write: (newPhotoUrl) =>
       updateEntry(id, { ...read.fields, photoUrl: newPhotoUrl ?? current.photo_url, status }),
     removeUploaded: (url) => deletePhoto(user.id, url),

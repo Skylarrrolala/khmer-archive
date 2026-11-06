@@ -27,6 +27,10 @@
 #        a snapshot of every row and file, then
 #        supabase/migrations/0005_*.sql    in one transaction, as in production
 #        tests/db/0005-photo-listing.test.sql on what 0004's tests left
+#        a snapshot of every row and file, then
+#        supabase/migrations/0006_*.sql    in one transaction, as in production
+#        tests/db/0006-limits.test.sql     on what 0005's tests left; it opens
+#                                          two more connections with dblink
 #   3. On exit, pass or fail, removes that container and its data volume.
 #      Nothing else in Docker is touched.
 #
@@ -162,6 +166,19 @@ if [ "$status" -eq 0 ]; then
   MIGRATION=$(ls "$ROOT"/supabase/migrations/0005_*.sql)
   load "$(basename "$MIGRATION") (single transaction)" "$MIGRATION" --single-transaction
   run_tests "$ROOT/tests/db/0005-photo-listing.test.sql"
+  status=$?
+fi
+
+if [ "$status" -eq 0 ]; then
+  echo
+  echo "== setup: 0006 =="
+  psql_in \
+    -c "insert into tests.snapshots (label, hash) select 'before 0006:' || e.id, md5(e::text) from public.entries e" \
+    -c "insert into tests.snapshots (label, hash) select 'before 0006 file:' || o.id, md5(o::text) from storage.objects o" \
+    >/dev/null || exit 1
+  MIGRATION=$(ls "$ROOT"/supabase/migrations/0006_*.sql)
+  load "$(basename "$MIGRATION") (single transaction)" "$MIGRATION" --single-transaction
+  run_tests "$ROOT/tests/db/0006-limits.test.sql"
   status=$?
 fi
 

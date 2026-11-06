@@ -12,8 +12,9 @@ import {
   type EntryFormState,
 } from "@/lib/entry-form";
 import { createEntry } from "@/lib/entries";
+import { limitMessage } from "@/lib/limits";
 import { deletePhoto, uploadPhoto } from "@/lib/photos";
-import { EntryWriteError, saveFailureMessage, saveWithPhoto } from "@/lib/save-with-photo";
+import { EntryWriteError, photoNote, saveFailureMessage, saveWithPhoto } from "@/lib/save-with-photo";
 
 /**
  * Submitting one dessert to the archive.
@@ -57,7 +58,7 @@ export async function submitEntry(
    * lib/save-with-photo.ts).
    */
   const outcome = await saveWithPhoto({
-    upload: () => uploadPhoto(user.id, photo),
+    upload: () => uploadPhoto(user.id, photo, "new-entry"),
     write: (photoUrl) => {
       if (!photoUrl) throw new EntryWriteError(undefined);
       return createEntry({ contributorId: user.id, ...read.fields, photoUrl });
@@ -73,7 +74,15 @@ export async function submitEntry(
     );
   }
   if (outcome.status === "not-saved") {
-    return formFailure(previous, saveFailureMessage("new", outcome), values);
+    /*
+     * The pending-entry limit is checked before the upload, but two
+     * submissions sent at once can both pass that check; the database then
+     * refuses the second entry (KA001, migration 0006). Its photo has already
+     * been taken back out, and photoNote says so.
+     */
+    const limit = limitMessage(outcome.code);
+    const message = limit ? `${limit}${photoNote(outcome.cleanup)}` : saveFailureMessage("new", outcome);
+    return formFailure(previous, message, values);
   }
 
   // The new entry is pending, so only "my entries" changes.

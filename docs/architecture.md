@@ -48,7 +48,8 @@ browser  ->  app/(browse)/page.tsx  ->  lib/entries.ts  ->  lib/supabase/server.
 | `lib/entry-form.ts` | The five text fields' labels, limits and blank-field messages, and `readEntryFields()`: 0002's rules, counted the way Postgres counts. Also the form state that hands the text back after a failure. |
 | `lib/photo-check.ts` | The 4 MiB limit and `photoFormat()`, which reads a file's first bytes. No imports, so the server, the browser form and the tests share it. |
 | `lib/photo-clean.ts` | `cleanPhoto()`: decodes a photo with `sharp` and encodes it again, upright and with no EXIF, GPS or XMP. Refuses a file that does not decode, or one over 50 megapixels. Imports nothing of the app's own, so the tests load it. |
-| `lib/photos.ts` | Uploads to `entry-photos/<user id>/<uuid>.<ext>` — the folder must be the uploader's id because the Storage policy checks it, and the name is a fresh uuid because an uploaded name is untrusted input. Type and extension come from the bytes; what is stored is the re-encoded image, not the file as sent. `deletePhoto()` never throws, reports whether the file is gone, and logs `[photo-cleanup]` with the path when it is not. |
+| `lib/photos.ts` | Uploads to `entry-photos/<user id>/<uuid>.<ext>` — the folder must be the uploader's id because the Storage policy checks it, and the name is a fresh uuid because an uploaded name is untrusted input. Type and extension come from the bytes; the upload is claimed against the contributor's limits before the photo is decoded; what is stored is the re-encoded image, not the file as sent. `deletePhoto()` never throws, reports whether the file is gone, and logs `[photo-cleanup]` with the path when it is not. |
+| `lib/limits.ts` | The sentence for each limit's error code (`KA001`–`KA003`, migration 0006). No imports, so it is unit-tested. |
 | `lib/save-with-photo.ts` | Upload, then write the row; if the write fails or matches nothing, take the new photo back out, and say if even that failed. Turns a database refusal into a sentence without repeating it. No imports, so its decisions are unit-tested. |
 | `components/AccountNav.tsx` | The signed-in state in the masthead. Sign-out is a POST form, not a link, so a prefetch or a third-party `<img>` cannot log someone out. |
 | `lib/supabase/server.ts` | Builds a per-request Supabase client wired to Next's cookie store, so the logged-in user's session travels with server-side queries. A new client per request — sharing one would leak sessions between users. |
@@ -88,7 +89,7 @@ browser  ->  app/(browse)/page.tsx  ->  lib/entries.ts  ->  lib/supabase/server.
 
 | File | What it does |
 | --- | --- |
-| `tests/*.test.ts` | Unit tests, run by `npm test` with Node's built-in runner: the field rules (including a check that the limits still match 0002), photo signatures, photo re-encoding (metadata, orientation, broken and oversized images), auth messages, the photo-cleanup decisions, the redirect guard, the form state. |
+| `tests/*.test.ts` | Unit tests, run by `npm test` with Node's built-in runner: the field rules (including a check that the limits still match 0002), photo signatures, photo re-encoding (metadata, orientation, broken and oversized images), the limit messages, auth messages, the photo-cleanup decisions, the redirect guard, the form state. |
 | `scripts/test-db.sh`, `tests/db/*.sql` | `npm run test:db`. Loads a Supabase stand-in (roles, `auth.uid()`, Storage, default grants), 0001, the seed, two contributors A and B, and 0002 into a throwaway Postgres container, then runs 133 checks through RLS as each role. Never connects to Supabase. |
 | `scripts/verify-rls.sh` | Historical: the 15 September check of the 0001 rules against the live project. It now stops before doing anything — see "Evidence" below. |
 
@@ -285,7 +286,36 @@ and the migration ever disagree.
   "Nothing was changed" instead of reporting success. What the services said
   goes to the server log.
 
-### What is deliberately missing
+### Limits (0006)
+
+Every signed-in account, reviewers included, has three limits:
+
+| Limit | Applies to | Refused with |
+| --- | --- | --- |
+| 5 pending entries | new entries only; an edit that sends an entry back to pending is never refused | `KA001` |
+| 20 photo uploads per rolling 24 hours | every upload, for a new entry or an edit | `KA002` |
+| 10 photos no entry uses | every upload | `KA003` |
+
+- **Entries.** The entries insert policy calls `check_entry_limit()`, which
+  takes a per-user lock, counts and refuses. The lock is held until the
+  transaction ends, so of two submissions sent at once the second waits and
+  then counts the first.
+- **Uploads through the app.** Before decoding a photo, `uploadPhoto()` calls
+  `claim_photo_upload()`. Under the same lock it checks the limits (the pending
+  one too, for a new entry) and writes one row to `photo_upload_claims`, a log
+  no API role can read or write. A file of the wrong type or size is refused
+  before the claim, so it uses up nothing. A claim is not given back when a
+  later step fails, because by then the photo may have been decoded.
+- **Uploads straight to Storage.** Supabase Storage runs the upload policy only
+  as a check it rolls back, then writes the file itself with policies off. A
+  policy can therefore refuse but not record or lock, so this path is limited
+  only by `photo_upload_allowed()`, a read-only count of the user's files:
+  fewer than 10 unused and fewer than 20 from the last 24 hours.
+- **Messages.** `lib/limits.ts` turns each code into a sentence, and the form
+  comes back with the text as typed. If two submissions at once both get past
+  the claim and the second entry is then refused, its photo is removed again,
+  as for any failed save.
+
 
 There is no review step in Sprint 2, and no policy lets a contributor set any
 status but `published`. A reviewer role, and the hiding of new entries until
@@ -310,6 +340,13 @@ policy above, and shipping it to the browser would undo all of it.
   copy, remove) comes from Supabase's documentation and needs the live check.
 - `photo_in_use()` lets any signed-in user ask whether a given file name is in
   use. Names are random uuids, and published ones are public anyway.
+- The upload limits are best effort for uploads sent straight to the Storage
+  API: they stop uploads sent one after another, not a burst sent at once, and
+  not uploading and deleting in a loop. That path never reaches the app's image
+  processing.
+- If photo clean-up keeps failing, a contributor's unused photos can reach 10,
+  and they cannot upload until someone removes the strays in the dashboard.
+  The app has no way for them to do it themselves.
 - With JavaScript off, or for a request sent directly, a photo past the
   4.25 MB body limit (or Vercel's own limit) fails before the action runs.
   That ends on the generic error page, and the typed text is lost. The entry

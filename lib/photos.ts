@@ -1,3 +1,4 @@
+import { limitMessage } from "@/lib/limits";
 import { MAX_PHOTO_BYTES, PHOTO_TOO_LARGE, photoFormat } from "@/lib/photo-check";
 import { cleanPhoto } from "@/lib/photo-clean";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -16,12 +17,16 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
  * folder named after their own user id, and Postgres refuses anything else. A
  * caller who skipped this file entirely could not put a file in someone else's
  * folder. What is here is the size and type check, made before anything is
- * uploaded (migration 0002 sets the same limits on the bucket), the re-encoding
+ * uploaded (migration 0002 sets the same limits on the bucket), the claim
+ * against the contributor's upload limits (migration 0006), the re-encoding
  * that strips a photo's metadata (lib/photo-clean.ts), and a legible error
  * instead of a 500.
  */
 
 const BUCKET = "entry-photos";
+
+const UPLOAD_FAILED =
+  "The photo could not be uploaded. Please try again, or try a smaller JPEG, PNG or WebP.";
 
 /** Either a stored photo's public URL, or a sentence to show the contributor. */
 export type PhotoUpload =
@@ -46,10 +51,21 @@ export type PhotoUpload =
  * is not the file as sent but the image re-encoded from it, upright and with
  * no EXIF or GPS (lib/photo-clean.ts). Re-encoding can make a file slightly
  * larger, so the 4 MiB limit is checked again on the result.
+ *
+ * Before any of that work, the upload is claimed: claim_photo_upload()
+ * (migration 0006) checks the contributor's limits and records the upload,
+ * in one transaction of its own. A refusal comes back as the limit's sentence
+ * (lib/limits.ts), with nothing decoded or stored. `purpose` says whether the
+ * photo is for a new entry, which the pending-entry limit also applies to, or
+ * for an edit, which it does not. The cheap checks above come first, so a file
+ * of the wrong type or size is refused without using up one of the day's
+ * uploads. A claim is not given back if a later step fails: by then the photo
+ * may already have been decoded.
  */
 export async function uploadPhoto(
   userId: string,
   photo: File,
+  purpose: "new-entry" | "edit",
 ): Promise<PhotoUpload> {
   const format = photoFormat(new Uint8Array(await photo.slice(0, 12).arrayBuffer()));
 
@@ -60,6 +76,18 @@ export async function uploadPhoto(
     return { ok: false, error: PHOTO_TOO_LARGE };
   }
 
+  const supabase = await createSupabaseServerClient();
+
+  const { error: claimError } = await supabase.rpc("claim_photo_upload", {
+    for_new_entry: purpose === "new-entry",
+  });
+  if (claimError) {
+    const limit = limitMessage(claimError.code);
+    if (limit) return { ok: false, error: limit };
+    console.error(`[photo-upload] claim refused (${claimError.code}): ${claimError.message}`);
+    return { ok: false, error: UPLOAD_FAILED };
+  }
+
   const cleaned = await cleanPhoto(new Uint8Array(await photo.arrayBuffer()), format.type);
   if (!cleaned.ok) {
     return { ok: false, error: cleaned.error };
@@ -68,7 +96,6 @@ export async function uploadPhoto(
     return { ok: false, error: PHOTO_TOO_LARGE };
   }
 
-  const supabase = await createSupabaseServerClient();
   const path = `${userId}/${crypto.randomUUID()}.${format.extension}`;
 
   // storage-js sends a Blob's own type and ignores `contentType`, so the
@@ -83,10 +110,7 @@ export async function uploadPhoto(
     // Storage's own wording goes to the server log, not the page: it is
     // written for developers and can name internal limits and paths.
     console.error(`[photo-upload] ${path}: ${error.message}`);
-    return {
-      ok: false,
-      error: "The photo could not be uploaded. Please try again, or try a smaller JPEG, PNG or WebP.",
-    };
+    return { ok: false, error: UPLOAD_FAILED };
   }
 
   const { data } = supabase.storage.from(BUCKET).getPublicUrl(path);
