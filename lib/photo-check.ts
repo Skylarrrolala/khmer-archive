@@ -20,9 +20,9 @@ export const PHOTO_TOO_LARGE = "That photo is larger than 4 MB. Try a smaller ve
  * name: both come from the visitor's machine, and a text file renamed
  * `photo.jpg` arrives declared as image/jpeg.
  *
- * shortcut: checks the signature only, not that the whole image decodes, so a
- * valid header followed by broken data still passes; decode with an image
- * library if broken images start reaching the archive.
+ * Checks the signature only, not that the whole image decodes. On the server,
+ * lib/photo-clean.ts then decodes and re-encodes the image, which refuses a
+ * file that does not decode and drops anything after the image.
  */
 export function photoFormat(head: Uint8Array): { type: string; extension: string } | null {
   const has = (bytes: number[], at = 0) => bytes.every((byte, i) => head[at + i] === byte);

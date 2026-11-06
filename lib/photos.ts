@@ -1,4 +1,5 @@
 import { MAX_PHOTO_BYTES, PHOTO_TOO_LARGE, photoFormat } from "@/lib/photo-check";
+import { cleanPhoto } from "@/lib/photo-clean";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 /**
@@ -15,8 +16,9 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
  * folder named after their own user id, and Postgres refuses anything else. A
  * caller who skipped this file entirely could not put a file in someone else's
  * folder. What is here is the size and type check, made before anything is
- * uploaded (migration 0002 sets the same limits on the bucket), and a legible
- * error instead of a 500.
+ * uploaded (migration 0002 sets the same limits on the bucket), the re-encoding
+ * that strips a photo's metadata (lib/photo-clean.ts), and a legible error
+ * instead of a 500.
  */
 
 const BUCKET = "entry-photos";
@@ -40,7 +42,10 @@ export type PhotoUpload =
  * the second half of that: a collision is an error, never an overwrite.
  *
  * The stored type and extension come from the file's opening bytes
- * (lib/photo-check.ts), not from the type the browser declared.
+ * (lib/photo-check.ts), not from the type the browser declared. What is stored
+ * is not the file as sent but the image re-encoded from it, upright and with
+ * no EXIF or GPS (lib/photo-clean.ts). Re-encoding can make a file slightly
+ * larger, so the 4 MiB limit is checked again on the result.
  */
 export async function uploadPhoto(
   userId: string,
@@ -55,14 +60,24 @@ export async function uploadPhoto(
     return { ok: false, error: PHOTO_TOO_LARGE };
   }
 
+  const cleaned = await cleanPhoto(new Uint8Array(await photo.arrayBuffer()), format.type);
+  if (!cleaned.ok) {
+    return { ok: false, error: cleaned.error };
+  }
+  if (cleaned.bytes.length > MAX_PHOTO_BYTES) {
+    return { ok: false, error: PHOTO_TOO_LARGE };
+  }
+
   const supabase = await createSupabaseServerClient();
   const path = `${userId}/${crypto.randomUUID()}.${format.extension}`;
 
   // storage-js sends a Blob's own type and ignores `contentType`, so the
   // detected type travels on the Blob rather than the one the browser declared.
+  // The copy into a plain Uint8Array is for the type checker: Blob does not
+  // accept a Node Buffer.
   const { error } = await supabase.storage
     .from(BUCKET)
-    .upload(path, new Blob([photo], { type: format.type }), { upsert: false });
+    .upload(path, new Blob([new Uint8Array(cleaned.bytes)], { type: format.type }), { upsert: false });
 
   if (error) {
     // Storage's own wording goes to the server log, not the page: it is

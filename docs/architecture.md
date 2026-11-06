@@ -47,7 +47,8 @@ browser  ->  app/(browse)/page.tsx  ->  lib/entries.ts  ->  lib/supabase/server.
 | `app/my-entries/[id]/edit/page.tsx`, `.../delete/page.tsx` | Load the entry through `getMyEntry`, so another contributor's id, a nonexistent one and a malformed one are the same 404. Delete is a POST from a page that shows the entry, never a link. |
 | `lib/entry-form.ts` | The five text fields' labels, limits and blank-field messages, and `readEntryFields()`: 0002's rules, counted the way Postgres counts. Also the form state that hands the text back after a failure. |
 | `lib/photo-check.ts` | The 4 MiB limit and `photoFormat()`, which reads a file's first bytes. No imports, so the server, the browser form and the tests share it. |
-| `lib/photos.ts` | Uploads to `entry-photos/<user id>/<uuid>.<ext>` — the folder must be the uploader's id because the Storage policy checks it, and the name is a fresh uuid because an uploaded name is untrusted input. Type and extension come from the bytes. `deletePhoto()` never throws, reports whether the file is gone, and logs `[photo-cleanup]` with the path when it is not. |
+| `lib/photo-clean.ts` | `cleanPhoto()`: decodes a photo with `sharp` and encodes it again, upright and with no EXIF, GPS or XMP. Refuses a file that does not decode, or one over 50 megapixels. Imports nothing of the app's own, so the tests load it. |
+| `lib/photos.ts` | Uploads to `entry-photos/<user id>/<uuid>.<ext>` — the folder must be the uploader's id because the Storage policy checks it, and the name is a fresh uuid because an uploaded name is untrusted input. Type and extension come from the bytes; what is stored is the re-encoded image, not the file as sent. `deletePhoto()` never throws, reports whether the file is gone, and logs `[photo-cleanup]` with the path when it is not. |
 | `lib/save-with-photo.ts` | Upload, then write the row; if the write fails or matches nothing, take the new photo back out, and say if even that failed. Turns a database refusal into a sentence without repeating it. No imports, so its decisions are unit-tested. |
 | `components/AccountNav.tsx` | The signed-in state in the masthead. Sign-out is a POST form, not a link, so a prefetch or a third-party `<img>` cannot log someone out. |
 | `lib/supabase/server.ts` | Builds a per-request Supabase client wired to Next's cookie store, so the logged-in user's session travels with server-side queries. A new client per request — sharing one would leak sessions between users. |
@@ -87,7 +88,7 @@ browser  ->  app/(browse)/page.tsx  ->  lib/entries.ts  ->  lib/supabase/server.
 
 | File | What it does |
 | --- | --- |
-| `tests/*.test.ts` | Unit tests, run by `npm test` with Node's built-in runner: the field rules (including a check that the limits still match 0002), photo signatures, auth messages, the photo-cleanup decisions, the redirect guard, the form state. |
+| `tests/*.test.ts` | Unit tests, run by `npm test` with Node's built-in runner: the field rules (including a check that the limits still match 0002), photo signatures, photo re-encoding (metadata, orientation, broken and oversized images), auth messages, the photo-cleanup decisions, the redirect guard, the form state. |
 | `scripts/test-db.sh`, `tests/db/*.sql` | `npm run test:db`. Loads a Supabase stand-in (roles, `auth.uid()`, Storage, default grants), 0001, the seed, two contributors A and B, and 0002 into a throwaway Postgres container, then runs 133 checks through RLS as each role. Never connects to Supabase. |
 | `scripts/verify-rls.sh` | Historical: the 15 September check of the 0001 rules against the live project. It now stops before doing anything — see "Evidence" below. |
 
@@ -234,6 +235,15 @@ and the migration ever disagree.
   PNG or WebP signature: a text file renamed `.jpg` is refused. The stored type
   and extension come from those bytes, not from what the browser declared. The
   bucket's `allowed_mime_types` checks only the declared type.
+- **Re-encoding (`lib/photo-clean.ts`).** The file as sent is never stored.
+  The server decodes it with `sharp` and stores the image encoded again, in
+  the same format and at the same resolution (JPEG at quality 80). A phone
+  photo's EXIF, GPS and XMP are not copied, so a photo of a grandparent's home
+  does not publish where that home is. The EXIF orientation is applied first,
+  so a photo taken sideways is stored upright. A file that does not decode is
+  refused, and anything appended after a valid image is not part of the
+  output. An image over 50 megapixels is refused before it is decoded, and the
+  4 MiB limit is checked again on the re-encoded result.
 - **Location.** Supabase Storage is itself a Postgres table (`storage.objects`)
   with RLS, so photo permissions are written the same way. Uploads must land in
   a folder named after the uploader's user id:
@@ -286,12 +296,14 @@ policy above, and shipping it to the browser would undo all of it.
 
 ### Known limitations
 
-- The photo check reads the file's signature, not the whole image, so a valid
-  header followed by broken data still passes.
-- An upload sent straight to the Storage API skips the app's checks. The
-  bucket still enforces size and declared type, so an owner could store a
-  non-image in their own folder and point their own entry at it. It would
-  show as a broken image, on their entry only.
+- Photos stored before re-encoding was added still carry their original
+  metadata, GPS included. Cleaning those is a separate, one-off task.
+- Re-encoding converts colours to sRGB, so a wide-gamut phone photo loses a
+  little saturation, and an animated WebP is stored as its first frame.
+- An upload sent straight to the Storage API skips the app's checks,
+  re-encoding included. The bucket still enforces size and declared type, so
+  an owner could store a non-image, or a photo with its metadata, in their own
+  folder and point their own entry at it. It would affect their entry only.
 - 0004 cannot vouch for files changed before it was applied: a photo swapped
   under an approved entry earlier still shows. Its tests run at the SQL layer;
   which statement each Storage API call sends (upload, upsert, update, move,
