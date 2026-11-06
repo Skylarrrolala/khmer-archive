@@ -11,7 +11,9 @@
 --     definitions — they read the JWT claims PostgREST puts in
 --     `request.jwt.claims`, which the tests set the same way;
 --   * storage.buckets and storage.objects with RLS on, the grants production
---     gives the API roles, and storage.foldername() as production defines it;
+--     gives the API roles, and storage.foldername() as production defines it
+--     (the unique name index is from Supabase's storage schema, not read from
+--     the live project);
 --   * Supabase's default privileges: every table created in `public` is
 --     granted in full to anon, authenticated and service_role. That is why
 --     production's entries table shows `arwdDxtm` for both API roles, and why
@@ -101,6 +103,11 @@ create table storage.objects (
   created_at timestamptz default now()
 );
 alter table storage.objects enable row level security;
+
+-- One file per name in a bucket, as in Supabase's own storage schema
+-- (`bucketid_objname`). An upload with upsert is an INSERT ... ON CONFLICT on
+-- this index, so the tests of 0004 need it to behave as Storage does.
+create unique index bucketid_objname on storage.objects (bucket_id, name);
 
 -- Production's grants on storage.objects (information_schema, 16 Oct).
 grant select, insert, update, delete on storage.objects to anon, authenticated;

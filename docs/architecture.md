@@ -250,6 +250,14 @@ and the migration ever disagree.
   owner's own folder, at a uuid-named file. The ownerless seed rows point at
   the photographs shipped in `public/entries/` instead. A published row must
   have a photo.
+- **A photo in use is frozen (0004).** An entry stores its photo as a URL, so
+  changing the file behind that URL would change an approved entry without
+  sending it back for review. There is no UPDATE policy on photos, so a stored
+  file can never be overwritten, upserted over or moved. A file cannot be
+  deleted, and its name cannot be uploaded to, while any entry of any status
+  points at it (`public.photo_in_use()`). To show a different photo, the
+  contributor uploads a new file and edits the entry, which sends it back for
+  review. The old file is unused after that edit and can be cleaned up.
 
 ### Cleanup, and what reaches the page
 
@@ -284,6 +292,12 @@ policy above, and shipping it to the browser would undo all of it.
   bucket still enforces size and declared type, so an owner could store a
   non-image in their own folder and point their own entry at it. It would
   show as a broken image, on their entry only.
+- 0004 cannot vouch for files changed before it was applied: a photo swapped
+  under an approved entry earlier still shows. Its tests run at the SQL layer;
+  which statement each Storage API call sends (upload, upsert, update, move,
+  copy, remove) comes from Supabase's documentation and needs the live check.
+- `photo_in_use()` lets any signed-in user ask whether a given file name is in
+  use. Names are random uuids, and published ones are public anyway.
 - With JavaScript off, or for a request sent directly, a photo past the
   4.25 MB body limit (or Vercel's own limit) fails before the action runs.
   That ends on the generic error page, and the typed text is lost. The entry
