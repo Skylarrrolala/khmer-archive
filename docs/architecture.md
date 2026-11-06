@@ -316,6 +316,19 @@ Every signed-in account, reviewers included, has three limits:
   the claim and the second entry is then refused, its photo is removed again,
   as for any failed save.
 
+### Review (0007)
+
+- **Nobody reviews their own entry.** `review_entry()` publishes or returns a
+  pending entry only if the caller is a reviewer and the entry is someone
+  else's. On their own entry a reviewer gets `false`, and nothing changes.
+- **Every edit goes back for review**, reviewers' included. The update policy
+  accepts only a `pending` row, so no one can set their own entry to
+  `published` directly, put back up an entry that was returned, or keep a
+  published entry public while changing its text or photo. 0003 allowed all
+  three for reviewers, and the last undid 0004's photo lock for them.
+- A reviewer's own entry is published by another reviewer, or by the founder in
+  the dashboard, which no policy applies to.
+
 
 There is no review step in Sprint 2, and no policy lets a contributor set any
 status but `published`. A reviewer role, and the hiding of new entries until

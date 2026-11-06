@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
-import { isReviewer, requireUser } from "@/lib/auth";
+import { requireUser } from "@/lib/auth";
 import {
   entryValues,
   formFailure,
@@ -30,8 +30,10 @@ import { EntryWriteError, saveFailureMessage, saveWithPhoto } from "@/lib/save-w
  */
 
 /**
- * Rewrites an entry and sends it back for review. A reviewer's edit keeps
- * their published entry published.
+ * Rewrites an entry and sends it back for review — every edit, by anyone,
+ * reviewers included (migration 0007). A reviewer's edit to their own
+ * published entry used to stay public, so new text or a new photo went out
+ * unreviewed.
  *
  * The photograph can be replaced but not removed: migration 0003's update
  * policy refuses an edited row without one. A chosen file replaces the
@@ -73,10 +75,8 @@ export async function saveEntry(
     );
   }
 
-  // Only a reviewer may leave their published entry published; any other
-  // edit goes back for review. The update policy refuses anything else.
-  const status =
-    current.status === "published" && (await isReviewer()) ? "published" : "pending";
+  // The update policy refuses any other status (migration 0007).
+  const status = "pending";
 
   const outcome = await saveWithPhoto({
     upload: photo ? () => uploadPhoto(user.id, photo, "edit") : null,
@@ -111,12 +111,12 @@ export async function saveEntry(
       ? await deletePhoto(user.id, current.photo_url)
       : true;
 
-  // A published entry has either changed in public or left it, so the browse
-  // page and the entry's own page change, not only "my entries".
+  // A published entry has left the public archive, so the browse page and the
+  // entry's own page change, not only "my entries".
   revalidatePath("/my-entries");
   revalidatePath("/");
   revalidatePath(`/entries/${id}`);
-  const done = `/my-entries?updated=${status}`;
+  const done = "/my-entries?updated=pending";
   redirect(oldPhotoRemoved ? done : `${done}&oldphoto=kept`);
 }
 

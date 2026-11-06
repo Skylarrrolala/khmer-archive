@@ -67,21 +67,3 @@ export async function requireUser(next?: string): Promise<User> {
 
   return user;
 }
-
-/**
- * Whether the logged-in user is a reviewer (`public.reviewers`, migration 0003).
- *
- * A hint, like everything else in this file: it picks the edit page's wording
- * and whether an edit asks to stay published. The update policy calls the
- * same function inside Postgres, so a wrong answer here is refused, never
- * published. An error reads as "not a reviewer", which sends the edit for
- * review: the safe way to be wrong.
- */
-export async function isReviewer(): Promise<boolean> {
-  const supabase = await createSupabaseServerClient();
-  const { data, error } = await supabase.rpc("is_reviewer");
-
-  if (error) console.error(`[auth] is_reviewer failed (${error.code}): ${error.message}`);
-
-  return data === true;
-}

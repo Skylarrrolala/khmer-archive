@@ -197,13 +197,11 @@ function noticeFor(params: {
     return "Thank you — your entry was sent for review. It will appear in the public archive once a reviewer publishes it.";
   }
   const updated = first(params.updated);
-  if (updated === "pending" || updated === "published") {
+  if (updated === "pending") {
     // The save stands either way; the last sentence only says that the photo
     // it replaced is still sitting in storage.
     const saved =
-      updated === "published"
-        ? "Your changes were saved and are public."
-        : "Your changes were saved and sent for review. The entry is not public until a reviewer publishes it.";
+      "Your changes were saved and sent for review. The entry is not public until a reviewer publishes it.";
     return first(params.oldphoto) === "kept"
       ? `${saved} The photo you replaced could not be removed from storage.`
       : saved;

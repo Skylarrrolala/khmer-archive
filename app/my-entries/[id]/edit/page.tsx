@@ -4,7 +4,7 @@ import type { Metadata } from "next";
 
 import { saveEntry } from "@/app/my-entries/[id]/actions";
 import { EntryForm } from "@/components/EntryForm";
-import { isReviewer, requireUser } from "@/lib/auth";
+import { requireUser } from "@/lib/auth";
 import { getMyEntry } from "@/lib/entries";
 
 export const metadata: Metadata = {
@@ -40,9 +40,6 @@ export default async function EditEntryPage({
 
   if (!entry) notFound();
 
-  // The same rule saveEntry applies: only a reviewer's published entry stays public.
-  const staysPublic = entry.status === "published" && (await isReviewer());
-
   return (
     <section className="mx-auto max-w-3xl px-6 py-16 lg:py-20">
       <Link
@@ -61,31 +58,25 @@ export default async function EditEntryPage({
       </h1>
 
       {/*
-        Saving sends an entry for review: since migration 0003 the update
-        policy accepts only a pending row from a contributor. For a published
-        entry that means it leaves the archive until it is published again —
-        said plainly, before the form, because it is the one consequence a
-        contributor might not expect.
+        Saving sends an entry for review: the update policy accepts only a
+        pending row, from anyone, reviewers included (migrations 0003, 0007).
+        For a published entry that means it leaves the archive until it is
+        published again — said plainly, before the form, because it is the one
+        consequence a contributor might not expect.
       */}
-      {staysPublic ? (
-        <p className="mt-5 max-w-xl text-sm leading-relaxed text-muted">
-          Changes you save appear in the public archive straight away.
-        </p>
-      ) : (
-        <p className="mt-8 border border-accent bg-accent-soft px-4 py-3 text-sm text-accent">
-          {entry.status === "published"
-            ? "Saving sends your changes to a reviewer. The entry leaves the public archive until it is published again."
-            : "This entry is not public. Saving sends it to a reviewer."}
-          {entry.photo_url ? null : " It needs a photograph first."}
-        </p>
-      )}
+      <p className="mt-8 border border-accent bg-accent-soft px-4 py-3 text-sm text-accent">
+        {entry.status === "published"
+          ? "Saving sends your changes to a reviewer. The entry leaves the public archive until it is published again."
+          : "This entry is not public. Saving sends it to a reviewer."}
+        {entry.photo_url ? null : " It needs a photograph first."}
+      </p>
 
       {/* The id is bound into the action here, so it never appears in the
           markup as something to retype. Errors come back through the form's
           own state, not the URL. */}
       <EntryForm
         action={saveEntry.bind(null, entry.id)}
-        submitLabel={staysPublic ? "Save changes" : "Save and send for review"}
+        submitLabel="Save and send for review"
         pendingLabel="Saving…"
         entry={entry}
       />
