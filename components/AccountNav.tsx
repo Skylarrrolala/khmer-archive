@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 import { signOut } from "@/app/(auth)/actions";
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentUser, isCurrentUserReviewer } from "@/lib/auth";
 import { isSupabaseConfigured } from "@/lib/env";
 
 /**
@@ -39,6 +39,9 @@ export async function AccountNav() {
     );
   }
 
+  // A review lookup failure must not take unrelated pages out of service.
+  const reviewer = await isCurrentUserReviewer().catch(() => false);
+
   return (
     <div className="flex flex-wrap items-baseline gap-x-5 gap-y-1">
       <Link
@@ -54,6 +57,15 @@ export async function AccountNav() {
       >
         Your entries
       </Link>
+
+      {reviewer ? (
+        <Link
+          href="/review"
+          className="text-[0.7rem] uppercase tracking-[0.22em] text-muted transition-colors hover:text-accent"
+        >
+          Review entries
+        </Link>
+      ) : null}
 
       {/* The email is the only identifier a contributor has until profiles
           exist, so it is what the archive greets them with. `break-all` because

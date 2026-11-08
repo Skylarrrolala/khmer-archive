@@ -1,5 +1,5 @@
 import { cache } from "react";
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import type { User } from "@supabase/supabase-js";
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -65,5 +65,22 @@ export async function requireUser(next?: string): Promise<User> {
     redirect(target);
   }
 
+  return user;
+}
+
+export const isCurrentUserReviewer = cache(async (): Promise<boolean> => {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.rpc("is_reviewer");
+  if (error) {
+    console.error(`[review] access check failed (${error.code}): ${error.message}`);
+    throw new Error("Could not check reviewer access.");
+  }
+  return data === true;
+});
+
+// Used by both the page and every decision; the database checks again inside review_entry().
+export async function requireReviewer(): Promise<User> {
+  const user = await requireUser("/review");
+  if (!(await isCurrentUserReviewer())) notFound();
   return user;
 }

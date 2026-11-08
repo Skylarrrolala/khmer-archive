@@ -322,3 +322,27 @@ export async function deleteEntry(id: string): Promise<Entry | null> {
 
   return data;
 }
+
+/** The review page checks reviewer access before asking; RLS also limits this read. */
+export async function getPendingEntries(): Promise<Entry[]> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("entries")
+    .select("*")
+    .eq("status", "pending")
+    .order("created_at", { ascending: true });
+
+  if (error) throw new Error(`Could not load the review queue: ${error.message}`);
+  return data ?? [];
+}
+
+/** The existing RPC checks reviewer membership, pending status and separation of ownership. */
+export async function reviewEntry(id: string, decision: "published" | "returned"): Promise<boolean> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.rpc("review_entry", { entry_id: id, decision });
+  if (error) {
+    console.error(`[review] decision refused (${error.code}): ${error.message}`);
+    throw new EntryWriteError(error.code);
+  }
+  return data === true;
+}

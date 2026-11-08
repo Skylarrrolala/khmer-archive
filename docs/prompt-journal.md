@@ -616,3 +616,214 @@ produced.*
 ---
 
 *Continues through Sprint 3.*
+
+---
+
+# Prompt Journal — Sprint 3
+
+## Entry 1 — Sunday 8 November 2026: Codex handoff and inspection
+
+*Recorded during this session. This entry describes inspection, not an
+implementation or deployment. Earlier Claude Code prompts have not been
+recovered or reconstructed.*
+
+**1. Prompt** — copied from the request in this conversation:
+
+```text
+Hey Codex, I need help finishing Sprint 3 of my Khmer Living Archive project for ICT 340. The deadline is tonight, November 8.
+
+We previously worked on this using Claude Code, but I can't access it anymore. Please pick up from the existing repository instead of starting over.
+
+Our Sprint 3 requirements are:
+
+- Visitors can browse and search published entries only.
+- Contributors can submit entries that start as pending.
+- Reviewers can see pending entries in a review queue and publish or return them.
+- Strangers cannot publish their own entries or change another contributor's entries, including through the browser console.
+- The live site must work, and we need to keep our Git history and Prompt Journal.
+
+Our latest security fixes are on `claude/practical-hawking-cn165u`, ending at commit `39f57b0`. Local main was fast-forwarded, but GitHub main hasn't been pushed yet.
+
+Supabase production currently has migrations 0001–0003. Migrations 0004–0008 are committed but not applied. Pushing main triggers a Vercel production deployment, so don't push it before the database is ready.
+
+First, please inspect the project and compare it with the Sprint 3 requirements. I'm especially concerned that we might not have a working reviewer queue with Publish and Return buttons.
+
+Tell me what's already done, what's missing, and what we need to prioritize for submission.
+
+If something is missing, we'll fix it one small chunk at a time. Run the tests, show me the changes, and wait for my approval before committing.
+
+Don't modify production, apply migrations, merge, push, or deploy anything without asking me first.
+
+Also, please keep track of the prompts and changes so I can document them honestly in my Sprint 3 Prompt Journal.
+```
+
+**2. Technique** — Requirements checklist and incremental handoff
+*(suggested label; confirm the course's terminology).* The request asks for
+evidence from the existing repository before making changes, and reserves
+commits and production work for explicit approval.
+
+**3. What came back**
+
+- The actual checkout was `b2d2f5e` on `claude/practical-hawking-cn165u`,
+  four commits behind its stored remote-tracking branch at `39f57b0`.
+  Local `main` and stored `origin/main` were both `892b8ac`, six commits
+  behind `39f57b0`. No fetch or branch update was made; these observations
+  describe this workspace's refs, not a fresh query of GitHub.
+- Codex inspected `39f57b0` using `git archive` in a temporary directory,
+  leaving the checkout and Git history untouched.
+- Public queries explicitly request published rows. Database policies
+  restrict anonymous reads to published entries, enforce ownership, and
+  default new entries to pending. Contributor pages show pending, published
+  and returned statuses, and edits resubmit entries for review.
+- The review backend exists: `is_reviewer()` and `review_entry()` in 0003,
+  with self-review blocked by 0007 and status history added by 0008.
+  However, there is no reviewer route, queue, Publish/Return UI, application
+  call to `review_entry()`, or reviewer navigation link at `39f57b0`.
+- Migrations 0004–0008 contain photo protection, listing restrictions,
+  contributor limits, review separation and review history. Production's
+  migration state (0001–0003) was supplied by the user, not independently
+  checked. The latest upload code calls `claim_photo_upload()` from 0006;
+  deploying that code before applying 0006 would break photo uploads.
+- Checks against the `39f57b0` snapshot: `npm test` passed 56/56;
+  `npm run lint` passed; TypeScript (`tsc --noEmit --incremental false`)
+  passed; `npm run build` passed. The initial build could not find the
+  local native Next.js compiler, so the repository's locked dependencies
+  were installed with `npm ci --ignore-scripts --no-audit --no-fund` only
+  in the temporary snapshot, then the build succeeded. No project
+  dependency or lockfile was changed.
+- `npm run test:db` was attempted against its disposable local Docker
+  setup, but stopped with `Docker is not running.` No SQL assertions ran
+  and no Supabase connection was made. Database security tests exist for
+  migrations 0002–0008, but this session has not proved they pass.
+- Read-only HTTP checks of `https://khmer-archive-zeta.vercel.app` returned
+  200 for the homepage, `/?q=Kroch`, one published entry, login and signup;
+  `/review` returned 404. Search included Num Kroch and excluded Num Korm.
+  These were HTTP checks, not browser interaction or authenticated tests.
+- README, project instructions and parts of the architecture document still
+  describe Sprint 2 behavior. The prior journal ends in Sprint 2 with
+  pending sections. Those historical sections were preserved.
+- Recommended order: reconcile the checkout with the intended baseline;
+  implement the missing reviewer queue using the existing database
+  functions; run local database and authenticated workflow tests; prepare
+  accurate documentation and rollout steps; ask for approval before
+  production migrations, then before pushing/deploying.
+- Repository change in this inspection: this journal entry only. No
+  application code, migrations, branches, commits or production state were
+  changed. Pre-existing untracked `.agents/` and `.codex/` were left alone.
+
+**4. What I changed or rejected**
+
+*Pending — the student's own review of these findings and decision about
+the next small chunk. Codex has not written that reflection on their behalf.*
+
+---
+
+## Entry 2 — Sunday 8 November 2026: the reviewer queue
+
+**1. Prompt** — copied from the next request in this conversation:
+
+```text
+Alright, let's fix the missing reviewer queue first since it's required for Sprint 3.
+Before making changes, please reconcile the checkout with the latest feature branch `claude/practical-hawking-cn165u` at `39f57b0`. Preserve the existing uncommitted Prompt Journal changes and don't overwrite anything.
+Then implement a simple `/review` page where authorized reviewers can see pending entries, view enough information to review them, and Publish or Return them using our existing database review function.
+Make sure contributors and logged-out users can't access reviewer actions. Handle loading, errors, and empty states, but don't spend time redesigning the UI.
+Keep the changes limited to the reviewer workflow. Run the available tests, lint, TypeScript checks, and build. Add relevant tests for the reviewer actions.
+Show me the changes and test results before committing. Don't apply migrations, push, deploy, or modify production yet.
+```
+
+**2. Technique** — A small, test-first implementation
+*(suggested label; confirm the course's terminology).* The plan was to
+preserve the checkout, test reviewer authorization and decisions, add the
+queue using the existing database functions and UI patterns, then verify
+the whole change before requesting commit approval.
+
+**3. What came back**
+
+- Backed up the existing journal and uncommitted patch in a temporary
+  directory. Fast-forwarded only `claude/practical-hawking-cn165u` from
+  `b2d2f5e` to `39f57b0`, as requested. A SHA-256 check confirmed that the
+  uncommitted journal was identical after that update. No merge commit was
+  created, and `main` was left at `892b8ac`.
+- Added `isCurrentUserReviewer()` and `requireReviewer()` to `lib/auth.ts`.
+  Membership is read using the signed-in session and `is_reviewer()`.
+  Visitors go to login with `/review` as the return destination;
+  contributors receive a 404. A failed membership lookup denies access.
+- Added `getPendingEntries()` and `reviewEntry()` to `lib/entries.ts`.
+  The queue asks for pending entries oldest first. Decisions call the
+  existing `review_entry(entry_id, decision)` function using the session;
+  the database remains the security boundary. No migration or privileged
+  key was added.
+- Added `/review` with the stored names, photograph, source, context and
+  full description. Reviewers have a navigation link. Their own entries
+  explain that another reviewer is needed, and have no decision buttons.
+  An older entry without a photo can be returned but has no Publish button.
+- Added Server Actions for Publish and Return. Each action independently
+  authorizes the caller and validates the id and decision. Success refreshes
+  the queue, public browse/detail pages and contributor list. A refused or
+  stale decision is reported as unchanged; database and connection failures
+  use a fixed message rather than exposing service details.
+- Reused `SubmitButton` for pending feedback and `FadeInImage` for photos.
+  Loading starts after authorization, using Suspense inside the page so
+  denied requests retain their redirect or 404. Empty state is explicit;
+  unexpected page errors use the existing root error boundary. No design
+  system, motion, dependency, schema or production setting changed.
+- Added 11 tests in `tests/review-actions.test.ts`. They execute the actual
+  auth, data and action modules, replacing only framework/network imports.
+  The first runnable test pass failed because the action module was missing;
+  the completed implementation passed. An earlier test-harness run stopped
+  on a Node-unsupported TypeScript parameter property; that test syntax was
+  corrected before implementation.
+- Verification: `npm test` passed 67/67; `npm run lint` passed; TypeScript
+  (`tsc --noEmit --incremental false`) passed; production build passed and
+  listed `/review`. The build used a temporary copy containing the changed
+  source and the locked dependencies installed during Entry 1, because this
+  checkout's existing dependency installation lacks the native Next compiler.
+  No dependency or lockfile in the project was changed.
+- Database tests initially stopped because Docker was off. Codex started
+  the installed local Docker Desktop engine and reran `npm run test:db`:
+  all 476 SQL assertions passed across migrations 0002–0008. The script
+  used and removed its throwaway Postgres container. These were local
+  migration applications, not changes to Supabase or production.
+- A temporary assert-based HTTP harness ran the actual production build
+  against a localhost Supabase stand-in. It verified visitor redirects,
+  contributor 404s, denial of direct form POSTs by both, reviewer content,
+  own-entry and missing-photo controls, Publish/Return RPC payloads and
+  redirects, loading/empty states, and no raw database error in the response.
+  This simulated the backend; it was not an authenticated live-site test
+  or a visual browser test. The temporary servers were stopped afterward.
+- A separate code-review agent inspected the uncommitted reviewer workflow
+  and ran the 11 new tests. It reported no findings. That review did not
+  inspect production or change files.
+- All changes remain uncommitted for the student's review. No production
+  request, production migration, push or deployment was made in this chunk.
+  The existing untracked `.agents/` and `.codex/` were left alone. Production
+  still needs the approved migration rollout before this code is deployed,
+  and the intended reviewer account needs confirmation.
+
+**4. What I changed or rejected**
+
+*Pending — the student's own review of the implementation and test results.
+Commit approval has not been given.*
+
+**Commit approval — 8 November 2026**
+
+The student subsequently approved committing this chunk with this prompt:
+
+```text
+Looks good. Let's commit the reviewer queue as one separate AI-assisted commit.
+Before committing, check the final diff for unrelated changes, secrets, and anything that might break the existing reviewer permissions.
+Stage only the reviewer queue implementation, navigation changes, related tests, and the new Prompt Journal entry. Preserve all earlier journal content.
+Use a clear commit message that marks it as AI-assisted.
+After committing, show me the commit hash, files changed, and git status.
+Don't push, merge, deploy, or apply any Supabase migrations yet.
+```
+
+The final review found no unrelated changes or credential patterns in the
+seven intended files. The page and actions still require reviewer access,
+and decisions still use the existing database function. Database policies,
+migrations, dependencies and project instructions are unchanged. The 11
+reviewer tests passed again before committing. Earlier committed journal
+content and this session's previous journal entries were preserved exactly.
+Only the seven reviewer-workflow and journal files are selected for the
+AI-assisted commit; the machine-specific `.agents/` and `.codex/` directories
+remain untracked. This approval covers the local commit only.
