@@ -827,3 +827,324 @@ content and this session's previous journal entries were preserved exactly.
 Only the seven reviewer-workflow and journal files are selected for the
 AI-assisted commit; the machine-specific `.agents/` and `.codex/` directories
 remain untracked. This approval covers the local commit only.
+
+---
+
+## Entry 3 — Sunday 8 November 2026: preparing the migration dry-run
+
+**1. Prompt** — copied from this conversation:
+
+```text
+The reviewer queue is committed at `14a5c29`. Let's move to the Supabase production migration preparation.
+First, read migrations 0004–0008 from our current committed branch and inspect how they depend on each other.
+Our last production check showed that migrations 0001–0003 are applied, while 0004–0008 are not.
+Please prepare a safe, reversible dry-run SQL script using the exact committed migration files, in order. It should run in one transaction and deliberately roll back at the end.
+Before generating the script, check for PostgreSQL 17 compatibility, Storage policy ownership/permissions, and migration dependencies. Include read-only queries to verify the database state before and after.
+Do not run any SQL against production yet. Don't modify the migrations, apply anything permanently, push, merge or deploy.
+Show me the plan, SQL script and any risks first so I can review them before executing anything.
+```
+
+**2. Technique** — Preparation with an explicit execution boundary
+*(suggested label; confirm the course's terminology).* Inspect the pinned
+committed migrations and current primary documentation, prepare the complete
+rollback script, and check its contents without opening a database connection.
+
+**3. What came back**
+
+- Prepared `docs/prepare-0004-0008.md` with the dependency order, PostgreSQL
+  17/Storage authority checks, expected verification results and risks.
+- Prepared `docs/dry-run-0004-0008.sql` from `git show` at
+  `14a5c29fab3ae096c62c45006c75dcea330484d3`. All five marked migration blocks
+  match the committed bytes, with SHA-256 markers. The file starts one
+  transaction, reads the baseline, runs 0004 through 0008, inspects the
+  transient state, then deliberately ends with ROLLBACK. No migration was
+  edited, and there is no COMMIT or migration-history write.
+- Added `docs/check-0004-0008.sql` for read-only metadata and data-digest
+  comparisons before and after rollback. The same query is embedded before
+  and after DDL inside the main transaction. Version-history inspection is
+  included separately for projects where its table exists. A missing or
+  empty ledger is not treated as proof that schema migrations are missing.
+- Checked current official PostgreSQL 17 docs and Supabase/Supautils sources,
+  including a Context7 lookup. Native policy DDL needs table ownership;
+  Supautils can delegate policy management on `storage.objects` to the
+  administrative role. Ordinary table grants, MAINTAIN and BYPASSRLS do not
+  substitute for that authority. The script does not change managed owners,
+  assume a managed role or grant role membership.
+- Safety checks cover the PostgreSQL major version, prerequisites and
+  expected policy inventory, partial later migrations, execution-role
+  privileges and private tables/function grants. Local timeout settings
+  bound lock waits, individual statements, idle transactions and total
+  transaction time. Full baseline policy expressions still need human review;
+  names and version records alone are insufficient.
+- Static checks verified exact committed migration bytes and ordering,
+  SHA-256 values, one BEGIN, one final ROLLBACK, no COMMIT, and two identical
+  copies of the read-only state query. A review caught that a multi-privilege
+  schema check accepts either privilege; it was split into separate USAGE
+  and CREATE checks. A separate static reviewer then found no issues.
+- No SQL was executed, even locally. No Supabase/project connector was used.
+  The earlier 476 SQL assertions on PostgreSQL 17.11 remain evidence for the
+  migration files in the simplified local setup, not a test of this wrapper
+  or production's actual role/Storage configuration.
+- Risks recorded: real DDL locks despite rollback, potentially different
+  hosted permissions, concurrent writes affecting comparison digests,
+  platform event triggers, and public photo URLs remaining readable when
+  known. A successful trial would not permanently apply any protection.
+- These preparation files and this appended journal entry remain uncommitted
+  for review. No production SQL, permanent application, history repair,
+  push, merge or deployment was performed.
+
+**4. What I changed or rejected**
+
+*Pending — the student's review of the proposed plan, SQL and risks.
+No execution approval has been given.*
+
+---
+
+## Entry 4 — Sunday 8 November 2026: requesting the read-only baseline
+
+**1. Prompt** — copied from this conversation:
+
+```text
+Alright, the migration preparation looks good. Let's start with Step 1 only.
+Please give me the exact read-only baseline queries from `check-0004-0008.sql` so I can run them in Supabase SQL Editor.
+Explain what results we should expect from the current production database, including migration history, policies, functions, reviewer access, and existing entries.
+Also check that our migrations won't accidentally change or delete existing archive entries or photos.
+Don't execute the dry run or apply any migration yet. I want to review the baseline results first before approving the next step.
+```
+
+**2. Technique** — Read-only baseline before execution
+*(suggested label; confirm the course's terminology).* Provide the exact
+prepared SELECT and the conditional history SELECT, explain the expected
+0003 state, then wait for the student's actual results.
+
+**3. What came back**
+
+- Re-read `docs/check-0004-0008.sql` and committed migrations 0001–0008.
+  Verified that the baseline file has one active SELECT and a commented,
+  optional SELECT of recorded migration versions. No SQL was executed.
+- Verified again that migrations 0004–0008 match the bytes at `14a5c29`.
+  A static check excluding function bodies found no top-level entry/photo
+  data mutations or invocation of write functions. UPDATE/INSERT statements
+  inside newly defined functions are for later requests, not migration-time
+  backfills. Dropping a Storage policy does not remove a Storage object.
+- Prepared an explanation of the expected six entries policies, four
+  Storage policies, two existing review functions and absence of the later
+  functions/tables/history trigger. Current 0003 behavior still permits
+  reviewer self-approval; 0007 is the unapplied fix, not part of Step 1.
+- Distinguished enabled table RLS from the administrative role bypassing
+  it; authenticated RPC execution permission from actual reviewer membership;
+  recorded migration history from schema state; and Storage metadata counts
+  from photographs shipped in `public/entries/`. Actual counts/digests and
+  the intended reviewer's membership remain unverified until results arrive.
+- Only this journal entry was appended. The prepared SQL files and migrations
+  were not changed. Dry-run execution and permanent migration application
+  remain unauthorized.
+
+**4. What I changed or rejected**
+
+*Pending — the student will run the read-only checks and return the results.
+No production baseline results have been received in this step.*
+
+---
+
+## Entry 5 — Monday 9 November 2026: baseline report and full SQL review
+
+**1. Prompt** — copied from this conversation:
+
+```text
+The Supabase baseline check passed.
+Production is running PostgreSQL 17.6 with 10 entries, 1 reviewer and 2 uploaded photos. Migration history shows exactly 0001, 0002 and 0003. The postgres role also has delegated Storage policy permissions.
+Let's proceed to reviewing the dry-run script.
+Please show me the exact contents of `docs/dry-run-0004-0008.sql`, including the BEGIN, preflight checks, all five migration statements and final ROLLBACK.
+Check that the transaction cannot accidentally commit, that there are no permanent writes outside the transaction, and that the migration-history changes will also roll back.
+Don't execute anything yet, apply migrations, push or deploy. I want to review the complete SQL before running it in Supabase.
+```
+
+**2. Technique** — Full-file review before execution
+*(suggested label; confirm the course's terminology).* Record the reported
+baseline, reproduce the prepared SQL, and audit transaction boundaries and
+history handling without connecting to a database.
+
+**3. What came back**
+
+- The student reported a successful baseline on PostgreSQL 17.6: 10 archive
+  entries, 1 reviewer, 2 uploaded photos, exactly 0001–0003 recorded, and
+  delegated Storage policy authority for `postgres`. These are user-reported
+  results; Codex did not independently connect or inspect the raw JSON.
+- Read the complete 903-line dry-run file. Static checks verified one
+  top-level BEGIN, no COMMIT or prepared-transaction commit, one final
+  ROLLBACK, and no executable statements after it. All five embedded files
+  still match their committed bytes and SHA-256 markers in 0004–0008 order.
+- Clarified that there are no migration-ledger writes to roll back. The only
+  references to `supabase_migrations.schema_migrations` inspect its existence
+  or SELECT its versions. The new `public.review_history` is a different
+  table for entry status changes, and its creation is inside the transaction.
+- No existing entry/photo data is modified outside a function definition,
+  and no write function is invoked. All proposed DDL/grants/trigger changes
+  are within the transaction. Complete execution in one fresh connection is
+  required: this cannot prevent a person editing the script, running only
+  selected migration blocks, or committing manually before its final rollback.
+- The reviewed file SHA-256 is
+  `50af16e8be41d70b1f66300250afe3da75334b1e5a3d184b4b2ad7209e9d30bc`.
+  The SQL itself was left unchanged. Only this journal entry was appended.
+- No SQL, dry-run, migration, commit, push or deployment was executed.
+  The user has requested review of the complete SQL, not execution approval.
+
+**4. What I changed or rejected**
+
+*Pending — the student's review of the complete dry-run SQL before any
+execution is approved.*
+
+---
+
+## Entry 6 — Tuesday 10 November 2026: sequence ACL and 0004-only preparation
+
+**1. Prompt** — copied from this conversation:
+
+```text
+The Supabase dry run completed, and the rollback checks passed. All five temporary objects are gone, and migration history still shows 0001–0003.
+Let's prepare for the permanent rollout, starting with migration 0004 only.
+First, review whether the review_history identity sequence permissions shown in the dry-run result create any security risk. Also confirm the current production schema matches the baseline.
+Then prepare the exact committed SQL for migration 0004 and a read-only verification query to run afterward. Explain what should change and what should remain untouched.
+Don't execute anything yet or change the migration files. Don't apply 0005–0008, push, merge or deploy.
+Show me the SQL and verification plan for approval first.
+```
+
+Codex asked for the actual ACL and post-rollback results because they were
+not present in the conversation. The student supplied the sequence ACL
+`postgres=rwU/postgres`, `anon=rwU/postgres`,
+`authenticated=rwU/postgres`, `service_role=rwU/postgres`; the original
+10/1/2 row counts and three MD5 fingerprints; five named absent objects;
+and history rows 0001–0003. This is a summary of the clarification, not a
+reconstructed transcript. The clarification explicitly stated:
+
+```text
+We have not captured a complete post-rollback database_state JSON yet, so please don't treat that as fully verified.
+Please assess the sequence permissions using these actual results. Then provide the exact read-only query needed to capture the full post-rollback baseline and compare it with the original state.
+Do not modify production, run migrations, commit, push or deploy anything yet.
+```
+
+**2. Technique** — Inspect actual permissions and narrow the rollout
+*(suggested label; confirm the course's terminology).* Separate what the
+supplied results prove from what still needs checking, prepare read-only
+comparisons, and keep the permanent 0004 draft behind explicit approval.
+
+**3. What came back**
+
+- The sequence ACL grants SELECT, UPDATE and USAGE directly to both API
+  roles. UPDATE permits resetting the counter, which could cause future
+  history inserts and their triggering entry changes to fail. Table grants
+  and sequence grants are separate. False sequence RLS flags are normal;
+  the excessive privileges are the issue. These conclusions were checked
+  against official PostgreSQL 17 documentation and a Context7 lookup.
+- This is a future 0008 hardening issue. No existing repository RPC path to
+  manipulate that sequence was found, so no public REST/browser exploit is
+  claimed. No sequence fix was written into 0004 or applied. A separately
+  approved numbered hardening migration and sequence-permission check are
+  proposed before permanent 0008, within the same transaction as 0008.
+- Full rollback/schema equivalence is explicitly still unverified. The
+  supplied absence checks and history rows are useful partial evidence;
+  complete current policy/function/grant data and current fingerprints were
+  not supplied. No production query was run by Codex to fill that gap.
+- Prepared `docs/check-post-rollback-0004-0008.sql`. It reuses the existing
+  full state SELECT unchanged, adds actual history rows, compares the three
+  supplied counts and MD5s, and checks all later relations/helpers and the
+  audit trigger. It includes the identity sequence that was not checked by
+  name in the student's five-object query. No nextval/setval/write RPC runs.
+- Prepared `docs/apply-0004.sql` as an explicit permanent-application review
+  draft with BEGIN, administrative/baseline checks, timeouts, exactly the
+  committed 0004 bytes from `14a5c29`, a verification guard, and COMMIT.
+  It is not the old ROLLBACK trial. It must not be executed before the full
+  baseline is reviewed and permanent execution is separately approved.
+- Prepared read-only `docs/verify-0004.sql` and `docs/prepare-0004.md`.
+  Expected changes are the photo-in-use helper, removal of Storage UPDATE
+  permission, and in-use protection on own-folder INSERT/DELETE. Entries,
+  reviewer membership, object metadata/bytes, the bucket/public SELECT,
+  managed ownership, entry policies/grants and review function stay intact.
+  No 0005–0008 DDL or migration-ledger write is included; recording 0004
+  would require its own approved step before automated migration commands.
+- Static self-checks verified unchanged committed migration bytes and hash,
+  one 0004 migration block, BEGIN/final COMMIT boundaries, supplied fingerprint
+  constants, and no mutation/sequence calls in the read-only query files.
+  A separate static reviewer found no issues. No SQL was executed locally
+  or remotely; no migrations, app code or dependencies were changed.
+- All preparation artifacts and this appended journal entry are uncommitted.
+  No production connection, permanent application, commit, push, merge or
+  deployment was performed.
+
+**4. What I changed or rejected**
+
+*Pending — the student will capture the complete post-rollback result for
+review before deciding whether to approve the 0004-only draft. The supplied
+clarification expressly does not authorize execution.*
+
+---
+
+## Entry 7 — Tuesday 10 November 2026: final 0004 review and atomic history record
+
+**1. Prompt** — copied from this conversation:
+
+```text
+The complete post-rollback baseline is now verified.
+All 10 checks passed, migration history is still 0001–0003, and the original policies, functions, permissions and data fingerprints match.
+Let's proceed with migration 0004 only.
+Please review `docs/apply-0004.sql` and `docs/verify-0004.sql` one final time against the committed migration and our verified production baseline.
+Check that the apply script uses the exact committed SQL, includes the appropriate safety checks and records migration 0004 in history only after successful application.
+Also confirm it won't change existing entries or photos.
+Don't execute anything, push, merge or deploy yet. Show me the final review and the exact instructions for applying and verifying 0004 in Supabase SQL Editor.
+```
+
+**2. Technique** — Final static review with atomic bookkeeping
+*(suggested label; confirm the course's terminology).* Accept the owner's
+reported baseline verification, compare the committed migration bytes, and
+make the requested history record part of the same transaction as application.
+
+**3. What came back**
+
+- The owner reports all ten complete post-rollback checks passing and
+  original policy/function/permission/data fingerprints matching. Codex did
+  not independently query production. The apply preflight still checks
+  critical schema and permission invariants against the 0001–0003 baseline.
+- Found the intended scope change from the prior draft: the apply script
+  deliberately omitted history recording, and the verifier expected history
+  to remain 0001–0003. This request now explicitly asks to record 0004.
+- Updated only the wrapper, verifier and preparation notes. The migration
+  block remains byte-for-byte identical to `14a5c29` and SHA-256
+  `db805bd16bb0e6dc2d5afb0b35359f5850a109ac678d4a91e87e523a2919fc9b`.
+  No committed migration, application code or dependency was changed.
+- Added a preflight INSERT(version) permission check and strengthened the
+  pre-commit helper/policy checks. After those checks, the wrapper inserts
+  only version `0004` into `supabase_migrations.schema_migrations`, then
+  performs its sole COMMIT. DDL and the ledger row commit together, or neither
+  does. There is no separate history-repair command or conflict suppression.
+- The ledger insert uses the minimum version primary-key field in Supabase's
+  migration-history schema. Optional name/statements metadata is not populated;
+  the repository retains the authoritative SQL. This limit is documented in
+  the SQL and plan. Public CLI documentation/source was consulted, including
+  Context7, without connecting to any project or running a migration command.
+- Updated the read-only verifier to return actual migration versions, expect
+  exactly 0001–0004, and compare all three supplied data fingerprints. All
+  twelve verification flags should be true if no legitimate concurrent data
+  changes occurred. Full metadata remains available for comparison.
+- A static check first failed on the old missing-history draft, then passed
+  after the update. It verifies exact migration bytes, one BEGIN/final COMMIT,
+  application checks before the history insert, the 0004-only record and
+  absence of archive/photo writes or write calls in the verifier. A separate
+  static reviewer reported no findings. No SQL was executed, even locally.
+- Prepared SQL Editor instructions: after explicit approval, select the
+  intended production project and postgres role, run the entire apply file
+  once without partial selection, then run the complete verifier separately.
+  Save all three result columns; expect 0001–0004 and twelve true flags.
+  On error stop, ROLLBACK if still connected, and inspect state before retrying
+  if a connection loss made the COMMIT outcome uncertain. Stop after 0004.
+- Existing entry rows/statuses, reviewers, Storage object rows/bytes/URLs,
+  bucket settings, entry policies/grants and the reviewer function are not
+  rewritten by this script. Only the 0004 helper/Storage rules and one ledger
+  row change. The future 0008 sequence ACL finding remains separate and unfixed.
+- This is still preparation for approval. No SQL, commit, push, merge or
+  deployment was executed; all preparation artifacts remain uncommitted.
+
+**4. What I changed or rejected**
+
+*Pending — the student's approval of the final 0004-only application and
+verification instructions. This prompt explicitly withheld execution.*
