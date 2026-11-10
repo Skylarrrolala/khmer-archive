@@ -51,6 +51,33 @@ select tests.ok(
 );
 select tests.ok((select count(*) from public.review_history) = 0, 'the history is empty: it starts with this migration');
 
+\echo '# 0a. API roles cannot manipulate the private identity sequence'
+
+begin;
+set local role authenticated;
+select tests.throws($q$select nextval('public.review_history_id_seq')$q$, '42501', 'authenticated cannot advance the history sequence');
+select tests.throws($q$select setval('public.review_history_id_seq', 1, false)$q$, '42501', 'authenticated cannot reset the history sequence');
+select tests.throws($q$select last_value from public.review_history_id_seq$q$, '42501', 'authenticated cannot read sequence state');
+commit;
+
+begin;
+set local role anon;
+select tests.throws($q$select nextval('public.review_history_id_seq')$q$, '42501', 'anon cannot advance the history sequence');
+select tests.throws($q$select setval('public.review_history_id_seq', 1, false)$q$, '42501', 'anon cannot reset the history sequence');
+select tests.throws($q$select last_value from public.review_history_id_seq$q$, '42501', 'anon cannot read sequence state');
+commit;
+
+select tests.ok(
+  not has_sequence_privilege('anon', 'public.review_history_id_seq', 'SELECT,UPDATE,USAGE')
+  and not has_sequence_privilege('authenticated', 'public.review_history_id_seq', 'SELECT,UPDATE,USAGE')
+  and not exists (
+    select 1 from pg_class c,
+      lateral aclexplode(coalesce(c.relacl, acldefault('S', c.relowner))) a
+    where c.oid = 'public.review_history_id_seq'::regclass and a.grantee = 0
+  ),
+  'history sequence has no API-role or PUBLIC grants'
+);
+
 
 \echo '# 1. Each status change is recorded once, with who made it'
 

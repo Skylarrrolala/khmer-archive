@@ -42,6 +42,8 @@ create index review_history_entry_idx on public.review_history (entry_id, change
 
 alter table public.review_history enable row level security;
 revoke all on table public.review_history from anon, authenticated;
+-- Identity sequences have separate grants; only the definer needs this one.
+revoke all on sequence public.review_history_id_seq from public, anon, authenticated;
 
 
 -- SECURITY DEFINER, because it writes a table the person making the change may
