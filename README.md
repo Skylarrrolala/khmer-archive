@@ -5,9 +5,11 @@ made and remembered by my grandparents in **Prey Veng**.
 
 Entries are of two kinds: desserts still actively made, and desserts
 remembered from earlier in life but no longer made. Every entry credits the
-person who shared it, by name, with their permission. Since Sprint 2 a new
-entry is public as soon as it is saved, and it needs a photograph to be saved
-at all (the brief asks for text plus at least one photo).
+person who shared it, by name, with their permission. New entries need text
+and a photograph. Under Sprint 3, submissions and edits stay `pending`,
+hidden from the public archive, until another authorized reviewer publishes
+them. Contributors can see Pending, Published or Returned in "Your entries"
+and edit a returned entry to submit it for review again.
 
 Built as a capstone project for a "Vibe Coding with AI" course.
 
@@ -16,10 +18,21 @@ Built as a capstone project for a "Vibe Coding with AI" course.
 | Sprint | Feature | Status |
 | --- | --- | --- |
 | 1 | Browse & search published entries, plus a detail page. No login. | **Done** |
-| 2 | Contributor accounts, submissions with a photo, edit/delete your own entries. | **Built and tested locally**; live rollout pending — [`docs/rollout-sprint2.md`](docs/rollout-sprint2.md) |
-| 3 | Review workflow — submissions stay hidden until a reviewer publishes them. | Not started. Sprint 2 publishes on save, so Sprint 3 needs a new migration to bring the review step back |
+| 2 | Contributor accounts and photo submissions. | Built |
+| 2 | Ownership — edit/delete only your own entries, enforced by RLS. | Built |
+| 3 | Review workflow — pending submissions, reviewer Publish/Return queue, contributor status. | Database applied and verified; reviewer queue deployment and authenticated live checks pending |
 
-Nothing outside these three sprints is in scope.
+Nothing outside these four features is in scope.
+
+This describes the repository after migrations 0001–0008, not a verified live
+deployment. Production migrations 0001–0008 are applied and verified as of
+10 November 2026; reviewer queue deployment and authenticated live checks remain
+pending. See [`docs/rollout-results-0004-0008.md`](docs/rollout-results-0004-0008.md). Current SQL,
+validation and approval checkpoints: [`docs/rollout-sprint3.md`](docs/rollout-sprint3.md).
+[`docs/prepare-0004-0008.md`](docs/prepare-0004-0008.md) prepares a rollback
+dry-run only, not permanent application. The older
+[`docs/rollout-sprint2.md`](docs/rollout-sprint2.md) records the Sprint 2 rollout
+and is not a complete Sprint 3 deployment plan.
 
 ## Stack
 
@@ -53,6 +66,16 @@ open **SQL Editor** and run, in this order:
    `begin;` … `commit;` so it applies completely or not at all. It publishes
    entries on save, protects the owner, id and date columns, and adds the
    text, photo and bucket limits.
+4. Apply migrations `0003` through `0008` in numeric order, each in one
+   transaction. They restore pending review, protect photos in use, restrict
+   photo listing, add contributor limits, prevent self-review, and record
+   status changes. Sprint 2's publish-on-save behavior is historical.
+
+These are fresh-project setup instructions. For an existing production
+project, verify its actual schema and migration history first; do not rerun
+files blindly. Reviewer membership is assigned by the founder in
+`public.reviewers`, outside the app. Contributors cannot grant themselves
+that role.
 
 Under **Authentication → URL Configuration**, add
 `http://localhost:3000/auth/confirm` to the Redirect URLs, or the link in a
@@ -79,37 +102,44 @@ Open <http://localhost:3000>.
 ### 5. Run the tests
 
 ```bash
-npm test          # unit tests: validation, photo checks, auth messages, cleanup
+npm test          # unit tests, including reviewer authorization and decisions
 npm run test:db   # the RLS and constraint tests, in a throwaway local Postgres (needs Docker)
 ```
 
 `npm run test:db` never connects to Supabase. `scripts/verify-rls.sh` is
 historical: it tested the 0001 rules against the live project, and now stops
-before doing anything. The live test that replaces it is in the rollout
-checklist.
+before doing anything. Sprint 3 still needs authenticated live checks for
+visitor, contributor and reviewer permissions, publish/return/resubmit, and
+real Storage behavior.
 
 ### 6. Deploy to Vercel
 
 Import the repository at [vercel.com/new](https://vercel.com/new). Add the same
 two environment variables under **Settings → Environment Variables**, for the
 Production, Preview and Development environments. Vercel detects Next.js and
-needs no other configuration.
+needs no other configuration. Apply and verify the required database
+migrations before deploying this checkout. Pushing `main` triggers the
+production deployment; a local test pass does not mean production is ready.
 
 ## How security is enforced
 
 The short version: **in the database, not in the UI.**
 
 `supabase/migrations/0001_init.sql` turns on Row Level Security for the
-`entries` table, which makes it deny-by-default, and grants back a few things.
-Migration 0002 changes only the status half of those rules:
+`entries` table. After migrations 0002–0008:
 
-- anyone may read entries where `status = 'published'`;
-- a logged-in contributor may additionally read their own entries, whatever
-  the status;
-- a logged-in contributor may insert a row only with their own id as
-  `contributor_id`, and it comes out `published`;
-- a logged-in contributor may update or delete only rows whose
-  `contributor_id` is their own id, and an edited row stays theirs.
+- visitors may read published entries only;
+- contributors may also read their own entries at every status;
+- a new entry must belong to its contributor, include a photo and start pending;
+- contributors may edit/delete only their own entries; every edit returns to pending;
+- reviewers may read the queue, but can publish or return only another
+  contributor's pending entry, through `review_entry()`;
+- neither a forged browser request nor a direct API request can grant a
+  reviewer role or bypass these database checks.
+
+`/review` and each decision action also check the signed-in reviewer's
+membership. Signed-out visitors are sent to login; contributors receive a 404.
+The database checks the role again when the decision is made.
 
 0002 also limits which **columns** a request may write: no API request can
 change an entry's `id`, `created_at` or `contributor_id`, or choose its
@@ -120,8 +150,13 @@ JPEG, PNG and WebP; the app also checks the file's bytes.
 
 Because these run inside Postgres, they hold even if the app forgets a filter,
 and even if someone calls the Supabase REST API directly with the anon key.
-Storage photos are protected the same way: a contributor can only write into a
-folder named after their own user id.
+Storage photos are protected the same way: a contributor can only upload into
+a folder named after their own user id. Files referenced by an entry cannot
+be replaced or deleted; bucket listing is limited to the owner's folder.
+The bucket remains public: a known photo URL still works while its entry is
+pending. Unpublished entry text is protected by RLS; photo URL access is a
+known limitation. Status history is private to the database owner and is not
+an app feature.
 
 Longer walkthrough, including the file-by-file map, the validation and photo
 rules, and the known limitations:

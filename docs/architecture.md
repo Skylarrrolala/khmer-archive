@@ -2,6 +2,12 @@
 
 Written so I can explain any line of this project without guessing.
 
+This describes this checkout with migrations 0001–0008. Production database
+migrations 0001–0008 were applied and verified on 10 November 2026; the reviewer
+queue deployment and authenticated live checks remain pending. See
+`docs/rollout-results-0004-0008.md`. The preparation documents and dated Sprint 2
+evidence below are historical; do not replay their SQL on the migrated database.
+
 ## The shape of a request
 
 A visitor loads `/`. Next.js runs `app/(browse)/page.tsx` **on the server** —
@@ -24,7 +30,13 @@ browser  ->  app/(browse)/page.tsx  ->  lib/entries.ts  ->  lib/supabase/server.
 | File | What it does |
 | --- | --- |
 | `supabase/migrations/0001_init.sql` | The base schema: the `entry_status` enum, the `entries` table, its indexes, every RLS policy, and the `entry-photos` storage bucket with its policies. Applied to the live project through the SQL Editor. |
-| `supabase/migrations/0002_sprint2_publish_on_submit.sql` | Sprint 2. Entries are published on save; the owner check in every policy is unchanged; column privileges protect `id`, `created_at` and `contributor_id`; text, photo and bucket limits. Changes no existing row, and fails as a whole if any row breaks a new rule. Not yet applied live — see `docs/rollout-sprint2.md`. |
+| `supabase/migrations/0002_sprint2_publish_on_submit.sql` | Sprint 2. Entries are published on save; the owner check in every policy is unchanged; column privileges protect `id`, `created_at` and `contributor_id`; text, photo and bucket limits. Changes no existing row, and fails as a whole if any row breaks a new rule. Applied live; see the dated evidence below for earlier rollout status. |
+| `supabase/migrations/0003_sprint3_review_gate.sql` | Renames `rejected` to `returned`, makes new entries pending, adds the private reviewer membership table and `is_reviewer()` / `review_entry()` functions. Existing published rows stay published. |
+| `supabase/migrations/0004_prevent_approved_photo_changes.sql` | Stops overwriting photos and blocks uploading to or deleting a path referenced by any entry. |
+| `supabase/migrations/0005_restrict_photo_listing.sql` | Limits Storage listing to the contributor's own folder. Public photo URLs still work. |
+| `supabase/migrations/0006_contributor_limits.sql` | Adds pending-entry and photo-upload limits, with private upload claims and fixed error codes. |
+| `supabase/migrations/0007_review_separation.sql` | Prevents reviewers deciding their own entries; every owner's edit must go back to pending. |
+| `supabase/migrations/0008_review_history.sql` | Privately records entry creation and status changes with a trigger. History starts here, with no backfill or app interface. |
 | `docs/rollback-0002.sql` | Undoes 0002, back to exactly 0001's rules. Emergency use only: it restores weaknesses 0002 closed (see the rollout checklist, "Rollback"). Kept out of `migrations/` so `supabase db push` never runs it. |
 | `supabase/seed.sql` | The seven desserts, with ingredients, method, region and notes folded into `description`. The content is researched, not family testimony: every `told_by` holds `[SOURCE PENDING …]`, which the UI renders as a "Source pending verification" badge, so nothing on the page claims a source it does not have. Re-running the file clears the rows it owns (`contributor_id is null`) first, so it cannot double up. |
 
@@ -34,27 +46,29 @@ browser  ->  app/(browse)/page.tsx  ->  lib/entries.ts  ->  lib/supabase/server.
 | --- | --- |
 | `lib/env.ts` | Reads `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`. Reads them inside a function, not at import time, so `next build` still succeeds on a machine with no `.env.local`. |
 | `proxy.ts` | Refreshes the Supabase session on each request. Named `proxy.ts`, not `middleware.ts` — that convention is deprecated in Next.js 16 and renamed. It is **not** an auth gate: Next's own guidance is that a proxy is an optimistic check only, so there is no redirect logic in it. Deleting it would log people out early; it would not expose a row. |
-| `lib/auth.ts` | The auth half of the data access layer. `getCurrentUser()` uses `getUser()` (which revalidates the token with Supabase) rather than `getSession()` (which just trusts the cookie), memoised with React `cache`. `requireUser()` redirects to `/login` for pages that make no sense signed out. |
+| `lib/auth.ts` | The auth half of the data access layer. `getCurrentUser()` uses `getUser()` (which revalidates the token with Supabase) rather than `getSession()` (which just trusts the cookie), memoised with React `cache`. `requireUser()` redirects to `/login` for pages that make no sense signed out. `isCurrentUserReviewer()` calls the database membership function with this session; `requireReviewer()` redirects visitors and returns 404 for non-reviewers. A failed membership lookup throws and denies access. |
 | `app/(auth)/actions.ts` | Sign-up, sign-in and sign-out as Server Actions. Only actions and route handlers may write cookies, which is why session creation lives here. `next` goes through `safeInternalPath()`, so the forms cannot be used as an open redirect. A failure redirects with a message key, never Supabase's wording: a wrong password and an unknown address get the same message, and a sign-up for an address that already has an account ends on the same "check your email" notice as a new one. Unexpected errors, and a sign-out whose server-side revocation failed, are logged as `[auth]`. |
 | `app/(auth)/auth/confirm/route.ts` | Where the confirmation email's link lands. Trades the one-time code for a session (PKCE), so a new contributor arrives signed in. A link opened in another browser cannot finish the trade, but the email is confirmed by then, so it says "sign in" rather than showing an error. Never shows Supabase's text from the URL, and re-checks `next`. |
 | `app/(auth)/login/page.tsx`, `app/(auth)/signup/page.tsx` | The two auth pages. They read `?error=` (a message key), `?pending=` (where a confirmation stands) and `?next=` from the URL, and show only known keys, so a crafted link cannot put its own words on the page. |
 | `lib/safe-path.ts` | `safeInternalPath()`, the redirect guard: only a same-site path, rebuilt from the parsed URL, so protocol-relative, backslash, control-character and dot-segment tricks all end at `/`. |
 | `lib/auth-messages.ts` | The fixed messages for the auth forms, and the map from Supabase Auth's error codes to them. None says whether an account exists. |
 | `components/AuthForm.tsx` | One form for both sign-up and sign-in. A plain `<form action>` with no client state, so it submits with JavaScript disabled; errors come back as `?error=<key>` on a redirect. |
-| `app/submit/page.tsx`, `app/submit/actions.ts` | The submission form and its Server Action. The entry is public as soon as it is saved, so it needs a photo — checked here before anything is uploaded, and again by 0002. `contributor_id` is set server-side and `status` is never sent: under 0002 the database chooses it. A failure returns to the form with the text as typed; the photo has to be chosen again, because no site can refill a file input. |
-| `app/my-entries/page.tsx` | The contributor's own entries, public or not. The only page that can show an unpublished row (one sent before Sprint 2), and it is the RLS policy "contributors can read their own entries" that makes that possible — not the `requireUser` call, which only decides whether to render. Shows the notices for saved, deleted, "nothing was changed" and "a photo is still in storage". Does not reuse `EntryCard`, and links "View" only for published rows: an unpublished one has no public page. |
-| `app/my-entries/[id]/actions.ts` | Editing and deleting your own entry. Neither checks ownership itself: the update and delete policies do, and a row that is not yours simply does not come back, which ends on "Nothing was changed". Saving publishes. A replaced photo is removed only once the row points at the new one, and a deleted entry's photo only once the row is gone. A database error reaches the delete page as a flag (`?failed=1`) and a fixed sentence. |
+| `app/submit/page.tsx`, `app/submit/actions.ts` | The submission form and its Server Action. A new entry needs a photo and starts pending — checked before uploading and again in the database. `contributor_id` is set server-side and `status` is never sent: 0003 makes the default pending, while 0002 prevents choosing it on insert. A failure returns to the form with the text as typed; the photo has to be chosen again, because no site can refill a file input. |
+| `app/my-entries/page.tsx` | The contributor's own entries, public or not. Shows Pending, Published and Returned, including new submissions and edits waiting for review. It is the RLS policy "contributors can read their own entries" that makes that possible — not the `requireUser` call, which only decides whether to render. Shows the notices for saved, deleted, "nothing was changed" and "a photo is still in storage". Does not reuse `EntryCard`, and links "View" only for published rows: an unpublished one has no public page. |
+| `app/my-entries/[id]/actions.ts` | Editing and deleting your own entry. Neither checks ownership itself: the update and delete policies do, and a row that is not yours simply does not come back, which ends on "Nothing was changed". Saving sets `pending`, including for reviewers, so an edit removes a published entry from the public archive until reviewed again. A replaced photo is removed only once the row points at the new one, and a deleted entry's photo only once the row is gone. A database error reaches the delete page as a flag (`?failed=1`) and a fixed sentence. |
 | `app/my-entries/[id]/edit/page.tsx`, `.../delete/page.tsx` | Load the entry through `getMyEntry`, so another contributor's id, a nonexistent one and a malformed one are the same 404. Delete is a POST from a page that shows the entry, never a link. |
+| `app/review/page.tsx` | Authorizes the reviewer before streaming a loading state, then lists pending entries oldest first with names, source, context, full description and photo. Provides Publish/Return forms, an empty state and fixed result notices. The reviewer's own submissions have no decision buttons, and a missing photo prevents Publish. Unexpected errors use `app/error.tsx`. |
+| `app/review/actions.ts` | Re-checks reviewer authorization for every decision and validates the id and decision even though they were bound by the page. Calls the existing RPC; false means unchanged, errors use a fixed notice. A success revalidates the queue, public browse/detail and contributor list. |
 | `lib/entry-form.ts` | The five text fields' labels, limits and blank-field messages, and `readEntryFields()`: 0002's rules, counted the way Postgres counts. Also the form state that hands the text back after a failure. |
 | `lib/photo-check.ts` | The 4 MiB limit and `photoFormat()`, which reads a file's first bytes. No imports, so the server, the browser form and the tests share it. |
 | `lib/photo-clean.ts` | `cleanPhoto()`: decodes a photo with `sharp` and encodes it again, upright and with no EXIF, GPS or XMP. Refuses a file that does not decode, or one over 50 megapixels. Imports nothing of the app's own, so the tests load it. |
 | `lib/photos.ts` | Uploads to `entry-photos/<user id>/<uuid>.<ext>` — the folder must be the uploader's id because the Storage policy checks it, and the name is a fresh uuid because an uploaded name is untrusted input. Type and extension come from the bytes; the upload is claimed against the contributor's limits before the photo is decoded; what is stored is the re-encoded image, not the file as sent. `deletePhoto()` never throws, reports whether the file is gone, and logs `[photo-cleanup]` with the path when it is not. |
 | `lib/limits.ts` | The sentence for each limit's error code (`KA001`–`KA003`, migration 0006). No imports, so it is unit-tested. |
 | `lib/save-with-photo.ts` | Upload, then write the row; if the write fails or matches nothing, take the new photo back out, and say if even that failed. Turns a database refusal into a sentence without repeating it. No imports, so its decisions are unit-tested. |
-| `components/AccountNav.tsx` | The signed-in state in the masthead. Sign-out is a POST form, not a link, so a prefetch or a third-party `<img>` cannot log someone out. |
+| `components/AccountNav.tsx` | The signed-in state in the masthead, with a review link only for reviewers. A membership lookup failure hides that link without breaking unrelated pages. Sign-out is a POST form, not a link, so a prefetch or a third-party `<img>` cannot log someone out. |
 | `lib/supabase/server.ts` | Builds a per-request Supabase client wired to Next's cookie store, so the logged-in user's session travels with server-side queries. A new client per request — sharing one would leak sessions between users. |
 | `lib/types.ts` | The TypeScript shape of an entry, mirroring the SQL table by hand. |
-| `lib/entries.ts` | Every query on `entries` lives here, so there is one place to audit. Sanitises the search term before it goes into a PostgREST filter. The writes carry no ownership check of their own — the policies decide — and log what Postgres said, passing only its code on to the page. |
+| `lib/entries.ts` | Every query on `entries` lives here, so there is one place to audit. Sanitises the search term before it goes into a PostgREST filter. The writes carry no ownership check of their own — the policies decide — and log what Postgres said, passing only its code on to the page. `getPendingEntries()` asks for pending rows oldest first; `reviewEntry()` calls `review_entry()` using the current session. |
 | `lib/placeholders.ts` | Recognises the bracketed markers (`[SOURCE PENDING …]` and the like) that stand in for values the archive does not have yet, so the UI shows a badge instead of an editing note. |
 
 ### Pages and components
@@ -89,8 +103,8 @@ browser  ->  app/(browse)/page.tsx  ->  lib/entries.ts  ->  lib/supabase/server.
 
 | File | What it does |
 | --- | --- |
-| `tests/*.test.ts` | Unit tests, run by `npm test` with Node's built-in runner: the field rules (including a check that the limits still match 0002), photo signatures, photo re-encoding (metadata, orientation, broken and oversized images), the limit messages, auth messages, the photo-cleanup decisions, the redirect guard, the form state. |
-| `scripts/test-db.sh`, `tests/db/*.sql` | `npm run test:db`. Loads a Supabase stand-in (roles, `auth.uid()`, Storage, default grants), 0001, the seed, two contributors A and B, and 0002 into a throwaway Postgres container, then runs 133 checks through RLS as each role. Never connects to Supabase. |
+| `tests/*.test.ts` | Unit tests, run by `npm test` with Node's built-in runner: the field rules (including a check that the limits still match 0002), photo signatures, photo re-encoding (metadata, orientation, broken and oversized images), the limit messages, auth messages, the photo-cleanup decisions, the redirect guard, the form state, and reviewer authorization/query/decision behavior in `tests/review-actions.test.ts`. Those review tests execute the actual modules with framework and network imports replaced; they do not test hosted Supabase. |
+| `scripts/test-db.sh`, `tests/db/*.sql` | `npm run test:db`. Loads a Supabase stand-in (roles, `auth.uid()`, Storage, default grants), 0001, the seed and account fixtures into a throwaway Postgres container, then applies 0002–0008 in order with each migration's SQL assertions. Covers ownership, review gates, photos, limits, review separation and private history. Never connects to Supabase; its simplified stand-in does not prove hosted default privileges or Storage behavior. |
 | `scripts/verify-rls.sh` | Historical: the 15 September check of the 0001 rules against the live project. It now stops before doing anything — see "Evidence" below. |
 
 ## How ownership enforcement actually works
@@ -123,10 +137,10 @@ table. The key helper is `auth.uid()`, which reads the user id out of the JWT
 attached to the request. A logged-out request has `auth.uid() = null`, so any
 comparison against it fails and the row stays invisible.
 
-### The rules, as of migration 0002
+### The rules, after migrations 0001–0008
 
-0001 wrote five policies on `entries`. 0002 changes only their status half;
-`auth.uid() = contributor_id` stays everywhere 0001 put it.
+The ownership checks from 0001 remain. 0002 tightened column privileges and
+validation; 0003 restored pending review; 0007 closed reviewer self-publishing.
 
 **1. The public sees only published entries.**
 
@@ -137,9 +151,10 @@ create policy "published entries are readable by everyone"
 ```
 
 `lib/entries.ts` *also* writes `.eq("status", "published")`, but that is a
-convenience for the query planner, not the guarantee. If someone deleted that
-line tomorrow, unpublished entries would still not leak, because Postgres would
-refuse to hand them over.
+public-page filter. The RLS policy guarantees that an anonymous request cannot
+read unpublished rows even if this filter is missing. Signed-in contributors
+can also read their own rows, and reviewers can read all rows, so public pages
+still need this filter when rendering with an authenticated session.
 
 **2. A contributor sees their own entries whatever the status.**
 
@@ -150,22 +165,16 @@ create policy "contributors can read their own entries"
 ```
 
 Postgres ORs the `select` policies together, so a logged-in contributor sees
-every published entry *plus* any unpublished one of their own — in practice,
-the one entry sent before Sprint 2.
+every published entry *plus* any unpublished one of their own. Reviewers
+additionally have a SELECT policy allowing every entry; the queue filters
+that down to pending rows.
 
-**3. A contributor can only create entries in their own name, and they are published.**
+**3. A contributor creates only their own pending entries.**
 
-```sql
-alter policy "contributors can create their own published entries"
-  on public.entries
-  with check (auth.uid() = contributor_id and status = 'published');
-```
-
-`auth.uid() = contributor_id` stops user A posting an entry credited to user
-B. The status half is 0002's change: Sprint 2's brief has a contribution
-appear publicly the moment it is saved. Contributors cannot write `status` on
-insert at all (see "Protected columns"), so the column's default, now
-`'published'`, always applies.
+After 0003 and 0006, the insert policy requires their own `contributor_id`,
+`status = 'pending'`, a photo and `check_entry_limit()`. Contributors cannot
+write `status` on insert, so the database default always applies. A forged
+request naming another owner or choosing a published status is refused.
 
 **4. A contributor can only edit or delete their own entries.**
 
@@ -173,19 +182,27 @@ insert at all (see "Protected columns"), so the column's default, now
 alter policy "contributors can update their own entries"
   on public.entries
   using (auth.uid() = contributor_id)
-  with check (auth.uid() = contributor_id and status = 'published');
+  with check (
+    auth.uid() = contributor_id
+    and photo_url is not null
+    and status = 'pending'
+  );
 ```
 
-The two clauses do different jobs, and both are needed:
+`using` decides which existing row may be touched; `with check` constrains
+its saved state. The final 0007 policy applies to reviewers too: an edit must
+be pending and retain its owner and photo. Delete needs only the owner check,
+since there is no saved state afterwards. Reviewers have no policy allowing
+them to edit or delete somebody else's content.
 
-- `using` decides **which existing rows** the user may touch.
-- `with check` decides **what the row is allowed to look like afterwards**.
+**5. Review decisions use a restricted database function.**
 
-With only `using`, a contributor could edit their own row and, in the same
-statement, hand it to someone else. Saving an edit publishes: for a published
-entry that changes nothing, and for the older unpublished one it is what makes
-it public — which 0002 allows only once it has a photo. Delete needs only
-`using`, since there is no "after" state to constrain.
+`review_entry(entry_id, decision)` runs as its database owner, so it checks
+reviewer membership itself. It accepts only Publish or Return, touches only a
+pending entry belonging to someone else, and changes only `status`. A
+non-reviewer or stale/self-review request changes nothing. A photo is required
+to publish. Reviewer membership is maintained outside the app in
+`public.reviewers`; API roles cannot read or change that table.
 
 ### Protected columns
 
@@ -335,19 +352,24 @@ Every signed-in account, reviewers included, has three limits:
   entry is given: when it is created, when a reviewer publishes or returns it,
   when an edit sends it back for review, and when the founder changes it in
   the dashboard. Each row has the entry, its contributor, the old and new
-  status, who made the change (no user means the founder) and when. An edit
-  that leaves the status as it was adds nothing, and a change that is refused
+  status, the session user and time. A null user means no authenticated user
+  was supplied, as with a database-owner dashboard/SQL Editor operation; it
+  does not independently identify the founder. An edit that leaves the status
+  as it was adds nothing, and a change that is refused
   or rolled back takes its row with it.
 - Only the founder reads it, in the dashboard. No API role can read, add to,
-  change or delete it, reviewers included.
+  change or delete it, reviewers included. 0008 separately revokes privileges
+  on its identity sequence from `PUBLIC`, `anon` and `authenticated`, so an
+  API caller cannot advance or reset the history counter.
 - It holds ids, statuses and times, never an entry's text, credit or photo,
   and it is kept when an entry or an account is deleted.
 - It starts with migration 0008: earlier changes were never recorded.
 
 
-There is no review step in Sprint 2, and no policy lets a contributor set any
-status but `published`. A reviewer role, and the hiding of new entries until
-review, is Sprint 3, and needs a new migration.
+Sprint 2's publish-on-save behavior belongs to migration 0002 only. The
+current checkout uses pending review and the stricter separation in 0007.
+These protections take effect in production only when those migrations are
+applied there.
 
 The `service_role` key must never appear in this project. It ignores every
 policy above, and shipping it to the browser would undo all of it.
@@ -388,8 +410,13 @@ policy above, and shipping it to the browser would undo all of it.
   existing one gets the notice, so the outcome tells them apart. Keep it on.
   Separately, Supabase's per-address resend limit can hint that someone signed
   up with an address in the last minute.
-- Whatever a contributor saves is public at once. The credit in `told_by` is
-  required but cannot be checked by the app.
+- The credit in `told_by` is required, but neither validation nor a reviewer
+  can establish permission without checking the real source.
+- Photo URLs remain public even for pending or returned entries. 0005 stops
+  bucket listing; it does not make the bucket private.
+- A reviewer may decide an entry that was edited after they loaded the queue:
+  the function checks its id and current pending status, not a content version.
+  The interface does not guarantee approval of the exact version displayed.
 - The seven researched entries still carry `[SOURCE PENDING …]`, and the
   provenance of the photos in `public/entries/` is not yet confirmed.
 - Vercel previews read and write the live database: the Supabase variables
@@ -427,10 +454,24 @@ policy above, and shipping it to the browser would undo all of it.
   That harness was not committed. It shows what the app does with the
   responses Supabase is documented to send; it is not Supabase.
 
-**Live, still pending** — the checklist in `docs/rollout-sprint2.md`:
-0002 on the live database; the bucket enforcing its limits; Vercel's request
-limit on a real upload; PostgREST's error codes; Supabase Auth's real error
-codes, confirmation emails and redirect URLs; and the two-account test.
+**Sprint 3 implementation evidence (8 November 2026)** — the Prompt Journal
+records 67 passing unit tests, lint, TypeScript and a production build listing
+`/review`. The build used a temporary snapshot with locked dependencies because
+the checkout's installed native Next compiler was missing. Those checks do not
+prove deployed behavior or hosted database permissions.
+
+**Production database verified; app deployment pending for Sprint 3** — migrations
+0004–0008 committed sequentially and passed verification on 10 November, after the
+initial 0004 verification was rerun as postgres with explicit owner approval.
+History is exactly 0001–0008; the original 10 entries, 1 reviewer, 2 photo metadata
+records and bucket settings remain intact. See `docs/rollout-results-0004-0008.md`;
+recovery and approval evidence is in `docs/rollout-sprint3.md`. The reviewer queue
+still needs approved deployment. Then check visitor, contributor and reviewer permissions
+using authenticated accounts: pending invisibility, cross-owner refusals,
+self-review refusal, Publish/Return, edit/resubmit and photo protection through
+the real API. The bucket limits, Vercel upload limit, Auth confirmation and
+redirects also need hosted checks. The older Sprint 2 checklist is historical,
+not a complete plan for the current migration set.
 
 **Live, earlier:** `scripts/verify-rls.sh` passed 14 of 14 against the live
 project on 15 September — the 0001 rules, not the current ones. It expects a
