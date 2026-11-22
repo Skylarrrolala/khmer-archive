@@ -1,10 +1,10 @@
-# Source-only deployments: credentials and local/test artifacts stay private.
-.git
-.vercel
-.env*
-node_modules
-.next
+# Ignore only root artifacts; keep lib/supabase authentication code.
+/.git
+/.vercel
+/.env*
+/node_modules
+/.next
 *.tsbuildinfo
-docs
-tests
-supabase
+/docs
+/tests
+/supabase
