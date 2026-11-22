@@ -65,11 +65,11 @@ test("surrounding spaces are trimmed before counting, and not stored", () => {
 });
 
 test("a field of only spaces or invisible marks counts as blank; Khmer split by zero-width spaces does not", () => {
-  assert.equal(errorOf(read({ told_by: " ​ ⁠﻿ " })), "Credit the person who shared this dessert, by name.");
-  assert.equal(errorOf(read({ context: "‌‍" })), "Say when the dessert is made — a festival, a daily snack.");
+  assert.equal(errorOf(read({ told_by: " ​ ⁠﻿ " })), "Credit the person who shared it, by name.");
+  assert.equal(errorOf(read({ context: "‌‍" })), "Say when it is made — a festival, a daily snack.");
   assert.equal(read({ name_khmer: "នំ​អន្សម" }).ok, true);
 });
 
 test("with several problems, the first field in form order is reported", () => {
-  assert.equal(errorOf(read({ name_khmer: "", description: "" })), "Give the dessert's name in Khmer script.");
+  assert.equal(errorOf(read({ name_khmer: "", description: "" })), "Give its name in Khmer script.");
 });

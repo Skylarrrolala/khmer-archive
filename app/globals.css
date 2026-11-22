@@ -1,153 +1,56 @@
 @import "tailwindcss";
 
-/*
- * Tailwind v4 is configured in CSS rather than a tailwind.config.js file.
- * `@theme inline` registers design tokens; naming one `--color-*` makes
- * Tailwind generate utilities for it (e.g. `bg-card`, `text-ink`).
- *
- * ── Two surfaces, one set of utilities ─────────────────────────────────
- * The archive sits on a deep maroon ground — the red of Khmer lacquerware
- * and of a krama — with cream cards laid on top of it. That means the same
- * utility has to mean two different things: `text-muted` is a warm sand on
- * the maroon and a warm brown on the cream. So the palette is built in two
- * steps rather than one:
- *
- *   1. plain custom properties (`--fg-ink`, `--brand`, `--edge`, …) hold
- *      the *current surface's* colours, and are re-declared per surface in
- *      the two blocks below;
- *   2. `@theme inline` maps the Tailwind tokens onto those properties.
- *
- * `inline` is what makes this work. It substitutes the token's value into
- * the utility, so `.text-muted` compiles to `color: var(--fg-muted)` and
- * resolves against whichever surface the element is sitting inside. Without
- * `inline`, Tailwind would freeze one value at build time and a card would
- * look exactly like the page behind it.
- *
- * Contrast was measured against WCAG AA (4.5:1 for body text), not eyeballed:
- *   on maroon   ink 12.7:1   muted 7.5:1   accent 6.9:1   on-accent 7.7:1
- *   on cream    ink 14.6:1   muted 5.4:1   accent 7.3:1   accent/soft 6.5:1
- *
- * `gold` is the loose one: 10.7:1 on maroon but 4.6:1 on cream, and 4.1:1 on
- * the accent-soft tint, which is why nothing puts gold text on that tint. It
- * is a decorative colour — hairlines, rules, bullets, section numbers, icon
- * strokes — and it is never the colour of a paragraph.
- */
-
-/*
- * Surface 1: the maroon page itself. `:root` only ever matches <html>, so
- * these are the values every element inherits until a cream surface
- * overrides them.
- */
-:root {
-  --ground: #4a1520;
-  --fg-ink: #f7ecdd;
-  --fg-muted: #d3b39c;
-  --edge: #6e2a33;
-  --brand: #dfa73f;
-  --on-brand: #3a0f18;
-  --decor-gold: #f0d9a0;
-}
-
-/*
- * Surface 2: the cream sheets. Keyed off the two background utilities that
- * actually paint cream, so a card, a form field or a placeholder panel
- * re-points the foreground properties for itself and everything inside it.
- * Only custom properties are declared here — no colours are painted — so
- * this never fights a utility for the same declaration.
- */
+/* Ivory is the reading surface; lacquer surfaces carry their own foregrounds. */
+:root,
 .bg-card,
 .bg-accent-soft {
+  --ground: #f8f0e3;
   --fg-ink: #2e1a15;
-  --fg-muted: #7a5b48;
-  --edge: #e0cdb2;
-  --brand: #8e2b2b;
+  --fg-muted: #705440;
+  --edge: #d9c4a3;
+  --brand: #4a1520;
   --on-brand: #f8f0e3;
   --decor-gold: #946212;
+  --ornament-color: #946212;
+}
+
+.bg-lacquer {
+  --fg-ink: #f8f0e3;
+  --fg-muted: #e0cdb2;
+  --edge: #85505a;
+  --brand: #f0d9a0;
+  --on-brand: #4a1520;
+  --decor-gold: #f0d9a0;
+  --ornament-color: #bca06c;
 }
 
 @theme inline {
-  /* The two grounds are fixed: they are what the surfaces are made of. */
   --color-ground: var(--ground);
   --color-card: #f8f0e3;
-  /* A cream tint one step down from `card`, for filled panels and pills. */
   --color-accent-soft: #f0e2d0;
-
-  /* Everything else follows the surface it is drawn on. */
+  --color-lacquer: #4a1520;
+  --color-sandstone: #d9c4a3;
   --color-ink: var(--fg-ink);
   --color-muted: var(--fg-muted);
   --color-line: var(--edge);
   --color-accent: var(--brand);
-  /* The readable foreground for anything filled with `accent`. */
   --color-on-accent: var(--on-brand);
-  /* Decorative only. See the contrast note above. */
   --color-gold: var(--decor-gold);
-
-  /*
-   * Type. The next/font variables are named --font-fraunces / --font-kantumruy
-   * rather than --font-display / --font-sans on purpose: a theme token defined
-   * in terms of a variable with its own name would be a self-reference, which
-   * CSS treats as invalid and silently drops.
-   *
-   * Kantumruy Pro carries both Latin and Khmer, so body copy in either script
-   * comes out of one typeface with one set of proportions — no seam where a
-   * Khmer word sits inside an English sentence. It is also a Khmer-drawn face
-   * rather than a Latin family with Khmer bolted on.
-   *
-   * Headlines are the serif pair: Fraunces for Latin, Noto Serif Khmer for
-   * Khmer. Both are seriffed and warm, so a dessert's Khmer name and its
-   * English gloss read as the same voice rather than two.
-   */
   --font-sans: var(--font-kantumruy), system-ui, sans-serif;
-  --font-display: var(--font-fraunces), var(--font-noto-serif-khmer), Georgia,
-    serif;
+  --font-display: var(--font-fraunces), var(--font-noto-serif-khmer), Georgia, serif;
   --font-khmer: var(--font-noto-serif-khmer), var(--font-kantumruy), serif;
-
-  /*
-   * Tailwind derives every spacing utility from this one number — `p-6` is
-   * `calc(var(--spacing) * 6)`. Nudging the 0.25rem default up to 0.28rem
-   * opens about 12% more air in every gap, pad and stack on the site, which
-   * is the "give it room" part of the design done from the theme rather than
-   * by editing a hundred component classes.
-   */
   --spacing: 0.28rem;
-
-  /*
-   * Motion. Every `transition-*` utility on the site takes its length and its
-   * curve from these two, so the hover fades on cards, links, fields and
-   * buttons are tuned in one place rather than in a hundred class lists — the
-   * same trick as `--spacing` above. Both point at the motion block below.
-   *
-   * Tailwind's defaults are 150ms on an ease-in-out curve: a colour change
-   * reads as a flicker, and ease-in-out starts slowly, so it seems to lag
-   * behind the pointer.
-   */
   --default-transition-duration: var(--motion-hover);
   --default-transition-timing-function: var(--ease-settle);
 }
 
-/*
- * ── Motion ─────────────────────────────────────────────────────────────
- * Every duration and the one easing curve on the site, in one place. These
- * are plain custom properties rather than theme tokens because `@theme
- * inline` substitutes its values into utilities instead of declaring them, so
- * a theme token would not be visible to the hand-written animation rules at
- * the end of this file.
- *
- * The pace is deliberately unhurried — the archive should feel like turning
- * the pages of a good book, not like an app. The curve is an ease-out that
- * starts promptly and spends most of its time settling, which is what reads
- * as calm rather than slow. To make everything faster or slower, change the
- * numbers here and nowhere else.
- */
+/* Preserve the existing approved motion and reduced-motion behavior. */
 :root {
   --ease-settle: cubic-bezier(0.25, 1, 0.5, 1);
-
-  --motion-hover: 400ms; /* colour and opacity changes on hover and focus */
-  --motion-photo: 1000ms; /* a photo fading in once it has loaded */
-  --motion-page: 700ms; /* the next page rising into place */
-  --motion-travel: 700ms; /* a dessert's photo flying card ↔ detail page */
-
-  /* The landing sequence: each piece's rise, and the gap between pieces. */
+  --motion-hover: 400ms;
+  --motion-photo: 1000ms;
+  --motion-page: 700ms;
+  --motion-travel: 700ms;
   --motion-land: 1200ms;
   --motion-stagger: 140ms;
 }
@@ -158,16 +61,39 @@
     color: var(--fg-ink);
   }
 
-  /*
-   * Visitors who ask their system for reduced motion get every change at
-   * once. The hover and photo transitions only fade, but a fade is still
-   * motion to someone who has asked for none, and this one rule covers every
-   * transition the utilities produce. The page transitions have their own
-   * rule at the end of this file.
-   *
-   * `!important` is what lets a base-layer rule beat the utilities layer: for
-   * important declarations the cascade-layer order reverses.
-   */
+  main {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
+    font-weight: 500;
+    text-wrap: balance;
+  }
+
+  [lang="km"] {
+    letter-spacing: normal;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--brand);
+    outline-offset: 4px;
+  }
+
+  button,
+  a,
+  input,
+  textarea {
+    touch-action: manipulation;
+  }
+
+  button {
+    cursor: pointer;
+  }
+
   @media (prefers-reduced-motion: reduce) {
     *,
     *::before,
@@ -175,55 +101,262 @@
       transition-duration: 0s !important;
     }
   }
+}
 
-  /*
-   * Headings take the display serif. This lives in `@layer base` so the
-   * `font-khmer` utility still wins on the Khmer names — utilities are a
-   * later layer than base, so they override it without needing `!important`.
-   *
-   * Tailwind's preflight resets headings to the body weight, so the weight is
-   * set here too; `font-semibold` and friends still override it where a
-   * component asks for something heavier.
-   */
-  h1,
-  h2,
-  h3 {
-    font-family: var(--font-display);
-    font-weight: 500;
-    letter-spacing: -0.01em;
-  }
+.gallery-shell {
+  width: min(100% - 2.5rem, 76rem);
+  margin-inline: auto;
+}
 
-  /*
-   * Numbered section labels, the way a printed feature numbers its sections.
-   * A CSS counter does it from the stylesheet, so the detail page's fields
-   * get 01 / 02 / 03 without the component having to know its own index.
-   *
-   * The numeral sits above its label as a large serif italic, so it reads as
-   * a printed section number rather than a list bullet. `letter-spacing` and
-   * `text-transform` are reset because the <dt> it hangs off is a wide-tracked
-   * uppercase label, and digits should inherit neither.
-   */
-  main dl {
-    counter-reset: field;
+@media (min-width: 640px) {
+  .gallery-shell {
+    width: min(100% - 4rem, 76rem);
   }
+}
 
-  main dl dt {
-    counter-increment: field;
-  }
+/* Retained only for the scoped loading state. */
+.threshold {
+  border-block-start: 1px solid var(--decor-gold);
+  border-inline-start: 5px double #d9c4a3;
+  padding-inline-start: clamp(1rem, 3vw, 2.5rem);
+}
 
-  main dl dt::before {
-    content: counter(field, decimal-leading-zero);
-    display: block;
-    margin-bottom: 0.45rem;
-    color: var(--decor-gold);
-    font-family: var(--font-display);
-    font-size: 1.875rem;
-    font-style: italic;
-    font-weight: 400;
-    letter-spacing: normal;
-    line-height: 1;
-    text-transform: none;
+.museum-nav :is(a, button) {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+}
+
+.skip-link {
+  position: absolute;
+  z-index: 10;
+  inset-block-start: 0.75rem;
+  inset-inline-start: 1rem;
+  transform: translateY(-200%);
+}
+
+.skip-link:focus {
+  transform: none;
+}
+
+.collection-grid > li {
+  min-width: 0;
+}
+
+.object-record > div {
+  padding-block: 1.5rem;
+  border-block-end: 1px solid var(--edge);
+}
+
+.object-record dt {
+  margin-block-end: 0.75rem;
+  font-family: var(--font-display);
+  font-size: 1.125rem;
+  color: var(--brand);
+}
+
+.object-record dd {
+  max-width: 65ch;
+}
+
+
+/* Original botanical vectors; reference and licence notes live in docs/v2. */
+.archive-masthead-inner { column-gap: 0.5rem; }
+.archive-brand { max-width: 16ch; font-size: 1.1rem; line-height: 1.2; }
+.archive-masthead .museum-nav { column-gap: 1rem; font-size: 0.8125rem; }
+
+.nav-dual { display: inline-flex; flex-direction: column; justify-content: center; align-items: flex-start; min-height: 44px; }
+.museum-nav .nav-dual { align-items: flex-start; }
+.nav-dual [lang="km"] { font-size: 1rem; line-height: 1.75; }
+.nav-dual .nav-english { font-size: 0.75rem; line-height: 1.35; }
+
+.kbach-frieze {
+  display: block;
+  color: var(--ornament-color);
+  background-color: currentColor;
+  -webkit-mask: url("/ornaments/living-gallery-centerpiece.svg") center / contain no-repeat;
+  mask: url("/ornaments/living-gallery-centerpiece.svg") center / contain no-repeat;
+}
+
+.ornament-divider {
+  -webkit-mask-image: url("/ornaments/living-gallery-divider.svg");
+  mask-image: url("/ornaments/living-gallery-divider.svg");
+}
+
+.heading-flower,
+.ornament-frame::before,
+.ornament-frame::after {
+  background-color: var(--ornament-color);
+  -webkit-mask: url("/ornaments/living-gallery-bud.svg") center / contain no-repeat;
+  mask: url("/ornaments/living-gallery-bud.svg") center / contain no-repeat;
+}
+
+.heading-flower { display: inline-block; width: 1.5rem; height: 1.5rem; flex: none; }
+.ornament-frame { position: relative; }
+.ornament-frame::before,
+.ornament-frame::after {
+  content: "";
+  position: absolute;
+  z-index: 1;
+  width: 2rem;
+  height: 2rem;
+  pointer-events: none;
+  -webkit-mask-image: url("/ornaments/living-gallery-corner.svg");
+  mask-image: url("/ornaments/living-gallery-corner.svg");
+}
+.ornament-frame::before { inset-block-start: -0.875rem; inset-inline-start: -0.875rem; }
+.ornament-frame::after { inset-block-end: -0.875rem; inset-inline-end: -0.875rem; rotate: 180deg; }
+
+.home-exhibition { padding-block: 1rem 1.5rem; }
+.exhibition-intro { display: grid; gap: 0.75rem; align-items: center; }
+.exhibition-copy { min-width: 0; }
+.exhibition-eyebrow { color: var(--fg-muted); font-size: 0.75rem; letter-spacing: 0.12em; text-transform: uppercase; }
+.homepage-khmer-title { margin-block-start: 0.25rem; color: var(--fg-ink); font-size: clamp(3rem, 8vw, 7rem); font-weight: 500; line-height: 1.5; text-wrap: balance; }
+.homepage-english-title { margin-block-start: 0.25rem; color: var(--fg-muted); font-size: clamp(1.15rem, 2.25vw, 1.85rem); font-style: italic; line-height: 1.45; text-wrap: balance; }
+.exhibition-enter { display: inline-flex; min-height: 44px; gap: 2rem; align-items: center; border-block-end: 1px solid var(--ornament-color); color: var(--fg-ink); font-size: 0.875rem; }
+.exhibition-enter:hover { color: var(--decor-gold); }
+.exhibition-lede { max-width: 34ch; margin-block-start: 0.75rem; color: var(--fg-muted); font-size: 0.9375rem; line-height: 1.65; text-wrap: pretty; }
+.exhibition-enter .nav-dual { padding-block: 0.35rem; }
+.exhibition-enter .nav-dual [lang="km"] { font-size: 1.125rem; }
+.exhibition-enter .nav-english { font-size: 0.875rem; }
+.search-label { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.25rem 0.75rem; }
+.search-label [lang="km"] { color: var(--brand); font-size: 1.125rem; line-height: 1.8; }
+.exhibition-cabinet { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); gap: 0.65rem 1rem; align-items: end; padding: 0.25rem 0.5rem 0; }
+.exhibition-crown { grid-column: 1 / -1; justify-self: center; width: 14rem; max-width: 100%; height: 3.5rem; margin-block-end: 0.5rem; }
+.exhibit-object { display: block; min-width: 0; }
+.exhibit-object--companion { margin-block-end: 1rem; }
+.exhibit-photograph { aspect-ratio: 2 / 3; max-height: 11rem; background: #f0e2d0; }
+.exhibit-object--companion .exhibit-photograph { aspect-ratio: 4 / 3; }
+.exhibit-label { padding-block: 0.55rem 0.15rem; color: var(--fg-ink); line-height: 1.65; }
+.exhibit-label [lang="km"] { font-size: clamp(1.1rem, 1.8vw, 1.5rem); }
+.exhibit-english-name { display: block; color: var(--fg-muted); font-size: 0.8125rem; }
+.exhibit-object:hover .exhibit-english-name { text-decoration: underline; text-underline-offset: 0.25em; }
+.exhibition-evidence { grid-column: 1 / -1; padding-block-start: 0.65rem; border-block-start: 1px solid var(--edge); color: var(--fg-muted); font-size: 0.8125rem; line-height: 1.6; }
+.collection-section { padding-block-start: 1rem; }
+.collection-cornice { display: flex; align-items: center; gap: 1rem; margin-block-end: 1rem; }
+.collection-cornice::before, .collection-cornice::after { content: ""; flex: 1; border-block-start: 1px solid var(--edge); }
+.collection-cornice .kbach-frieze { width: 7.5rem; height: 1.875rem; }
+.collection-heading { position: relative; padding-inline-start: 2.5rem; line-height: 1.5; }
+.collection-heading > .heading-flower { position: absolute; inset-inline-start: 0; inset-block-start: 0.7rem; }
+/* Room below the line for Khmer subscripts (ណ្ដ), so they never touch the English. */
+.collection-heading [lang="km"] { font-size: clamp(1.9rem, 3.5vw, 2.75rem); line-height: 1.85; }
+.collection-title-row { gap: 0.5rem; }
+.collection-english { display: block; font-size: 1rem; font-style: italic; line-height: 1.4; }
+.collection-count { padding-block: 0.5rem; border-block-end: 1px solid var(--ornament-color); }
+.collection-search { padding: 1rem; background: #efe2cc; }
+.collection-search label { margin-block-end: 0.75rem; }
+.search-field > svg { position: absolute; inset-inline-start: 0.75rem; inset-block-start: 1rem; color: var(--fg-muted); pointer-events: none; }
+
+@media (max-width: 359px) {
+  .archive-brand { font-size: 1rem; }
+  .archive-masthead .museum-nav { font-size: 0.75rem; column-gap: 0.75rem; }
+}
+
+@media (min-width: 640px) {
+  .archive-brand { max-width: none; font-size: 1.75rem; }
+  .archive-masthead .museum-nav { column-gap: 1.5rem; font-size: 0.875rem; }
+}
+
+.collection-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 2.5rem; align-items: start; }
+.gallery-object-link { border-block-end: 1px solid var(--edge); padding-block-end: 1.5rem; }
+.gallery-object-caption { min-width: 0; padding-block-start: 0.75rem; }
+.gallery-object { min-width: 0; }
+.gallery-object-photo { background: #e9dcc7; }
+.gallery-object:nth-child(even) .gallery-object-photo { background: #e0e4d5; }
+.gallery-object-label { padding: 0.75rem 1rem; }
+.gallery-object-label h2[lang="km"] { font-size: clamp(1.5rem, 2.2vw, 1.75rem); line-height: 1.7; }
+.gallery-object-evidence { padding: 0.9rem 0.2rem 0.25rem; }
+.source-notice { border-inline-start: 2px solid var(--ornament-color); padding-inline-start: 0.65rem; color: var(--brand); }
+
+.record-navigation { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 0.5rem 2rem; }
+.record-navigation p { margin: 0; }
+.record-eyebrow { margin-block-end: 0.75rem; color: var(--fg-muted); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.16em; }
+.record-khmer-title { font-size: clamp(2.8rem, 5.4vw, 4.5rem); line-height: 1.6; }
+.record-english-title { font-style: italic; }
+.record-figure { padding: 0.875rem; }
+.record-photograph { background: #eee3d0; }
+.archive-record .object-record > div { padding-block: 1.5rem; }
+.record-bilingual-label { display: grid; gap: 0.15rem; }
+.record-bilingual-label [lang="km"] { font-size: 1.4rem; line-height: 1.7; }
+.record-label-english { color: var(--fg-muted); font-size: 1rem; font-style: italic; }
+.record-story-label { position: relative; padding-inline-start: 2.5rem; }
+.record-story-label > .heading-flower { position: absolute; inset-inline-start: 0; inset-block-start: 0.5rem; }
+.record-story-label [lang="km"] { font-size: 1.65rem; }
+
+.record-figure { align-self: start; }
+/* The frame keeps the photograph's own proportions (--w / --h) and shrinks to fit the screen. */
+.record-photograph { aspect-ratio: var(--w) / var(--h); width: min(100%, calc(26rem * var(--w) / var(--h))); margin-inline: auto; }
+.record-source-summary { margin-block-start: 1rem; font-size: 0.875rem; line-height: 1.6; }
+.record-layout { display: grid; gap: 2rem 3rem; min-width: 0; }
+.record-breadcrumb { display: flex; flex-wrap: wrap; align-items: center; gap: 0.25rem 0.9rem; }
+.record-breadcrumb-current { display: inline-flex; align-items: center; gap: 0.9rem; color: var(--fg-muted); font-family: var(--font-khmer); font-size: 1rem; line-height: 1.8; }
+.record-breadcrumb-current::before { content: ""; width: 0.4rem; height: 0.4rem; border: 1px solid var(--ornament-color); rotate: 45deg; }
+.record-eyebrow [lang="km"] { font-size: 0.9375rem; letter-spacing: normal; text-transform: none; }
+.record-photo-credit { display: grid; gap: 0.1rem; margin-block-start: 1.25rem; color: var(--fg-muted); font-size: 0.875rem; line-height: 1.6; }
+.record-photo-credit [lang="km"] { color: var(--brand); font-size: 1rem; line-height: 1.8; }
+.record-photo-credit .record-label-english { font-size: 0.875rem; }
+.photo-credit-text { margin-block-start: 0.35rem; color: var(--fg-ink); }
+.photo-credit-text a,
+.record-reference-title { text-decoration: underline; text-decoration-color: var(--edge); text-underline-offset: 0.2em; }
+.photo-credit-text a:hover,
+.record-reference-title:hover { text-decoration-color: currentColor; }
+.record-references,
+.record-unresolved { padding-block-start: 1.5rem; border-block-start: 1px solid var(--edge); }
+.record-references h2,
+.record-unresolved h2 { margin-block-end: 1rem; }
+.record-references-note { max-width: 60ch; color: var(--fg-muted); font-size: 0.9375rem; line-height: 1.7; }
+.record-reference-list { display: grid; gap: 1.25rem; max-width: 65ch; margin-block-start: 1.25rem; counter-reset: reference; }
+.record-reference-list li { position: relative; display: grid; gap: 0.2rem; padding-inline-start: 2.25rem; line-height: 1.6; counter-increment: reference; }
+.record-reference-list li::before { content: counter(reference, decimal-leading-zero); position: absolute; inset-inline-start: 0; inset-block-start: 0.1rem; color: var(--fg-muted); font-family: var(--font-display); font-size: 0.875rem; }
+.record-reference-title { color: var(--brand); font-family: var(--font-display); font-size: 1.0625rem; }
+.record-reference-title[lang="km"] { font-family: var(--font-khmer); line-height: 1.8; }
+.record-reference-meta { color: var(--fg-muted); font-size: 0.875rem; }
+.record-reference-supports { font-size: 0.9375rem; }
+.record-unresolved ul { display: grid; gap: 0.6rem; max-width: 65ch; }
+.record-unresolved li { position: relative; padding-inline-start: 1.25rem; font-size: 0.9375rem; line-height: 1.7; }
+.record-unresolved li::before { content: ""; position: absolute; inset-inline-start: 0; inset-block-start: 0.7em; width: 0.4rem; height: 0.4rem; border: 1px solid var(--ornament-color); rotate: 45deg; }
+.record-story-panel { padding-block-start: 1.25rem; border-block-start: 1px solid var(--edge); }
+.record-story-panel h2 { margin-block-end: 1.25rem; }
+.record-prose { max-inline-size: 60ch; font-size: 1.0625rem; line-height: 1.85; }
+.record-metadata { display: grid; gap: 0 1.75rem; }
+@media (min-width: 640px) {
+  .record-metadata { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .record-prose { font-size: 1.125rem; }
+}
+@media (min-width: 1024px) {
+  .record-layout { grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr); }
+  .record-layout > * { grid-column: 2; }
+  /* The photograph stays in view beside a long record, and never outgrows the screen. */
+  .record-layout > .record-figure { position: sticky; inset-block-start: 1.5rem; grid-column: 1; grid-row: 1 / span 6; }
+  .record-photograph { width: min(100%, calc((100dvh - 13rem) * var(--w) / var(--h))); }
+}
+
+/* Equal exhibition bays preserve the published order without introducing ranks. */
+@media (min-width: 768px) {
+  .collection-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 3rem 2.5rem; }
+  .collection-grid > li:nth-child(even) { margin-block-start: 2.5rem; }
+}
+@media (min-width: 1280px) {
+  .collection-grid { column-gap: 4rem; }
+  .gallery-object-caption { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 1.25rem; align-items: start; }
+  .gallery-object-evidence { padding-block-start: 0.15rem; }
+}
+
+@media (min-width: 768px) {
+  .home-exhibition { padding-block: 1.75rem 2.25rem; }
+  .exhibition-intro {
+    grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
+    column-gap: clamp(2rem, 5vw, 4.5rem);
+    row-gap: 1.25rem;
   }
+  .exhibition-copy { grid-column: 1; align-self: end; }
+  .exhibition-context { grid-column: 1; grid-row: 2; align-self: start; }
+  .exhibition-cabinet { grid-column: 2; grid-row: 1 / span 2; gap: 1rem 1.75rem; }
+  .exhibition-crown { width: 22rem; height: 5.5rem; }
+  .exhibit-photograph { max-height: 20rem; }
+  .exhibit-object--companion { margin-block-end: 1.75rem; }
+  .collection-section { padding-block-start: 1.5rem; }
+  .collection-search { padding: 1.25rem 1.5rem; }
 }
 
 /*

@@ -1,0 +1,10 @@
+# Source-only deployments: credentials and local/test artifacts stay private.
+.git
+.vercel
+.env*
+node_modules
+.next
+*.tsbuildinfo
+docs
+tests
+supabase

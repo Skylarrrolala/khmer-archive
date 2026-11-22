@@ -87,7 +87,7 @@ export default async function EditEntryPage({
         </p>
         <p className="mt-4 max-w-xl text-sm leading-relaxed text-muted">
           Deleting an entry removes it, and its photograph, for good. If the
-          dessert is only half-remembered, an incomplete entry is worth more to
+          cake or snack is only half-remembered, an incomplete entry is worth more to
           the archive than none.
         </p>
         <Link

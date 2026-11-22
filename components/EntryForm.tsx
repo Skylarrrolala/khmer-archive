@@ -251,7 +251,7 @@ function PhotoField({ currentUrl }: { currentUrl: string | null }) {
       <p className="text-xs text-muted">
         {currentUrl
           ? "JPEG, PNG or WebP, up to 4 MB. Choosing a file replaces the photograph above; leaving this empty keeps it."
-          : "JPEG, PNG or WebP, up to 4 MB. Every entry needs a photograph of the dessert."}
+          : "JPEG, PNG or WebP, up to 4 MB. Every entry needs a photograph of the cake or snack."}
       </p>
     </div>
   );

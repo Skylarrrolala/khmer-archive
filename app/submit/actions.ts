@@ -49,7 +49,7 @@ export async function submitEntry(
 
   const photo = readPhoto(formData);
   if (!photo) {
-    return formFailure(previous, "Add a photograph of the dessert. Every entry needs one.", values);
+    return formFailure(previous, "Add a photograph of the cake or snack. Every entry needs one.", values);
   }
 
   /*

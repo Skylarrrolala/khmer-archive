@@ -33,6 +33,11 @@ export function isPlaceholder(value: string): boolean {
   return trimmed.startsWith("[") && trimmed.endsWith("]");
 }
 
+/** The generic Family credit is retained as written, but is not a named source. */
+export function hasUnattributedSource(value: string): boolean {
+  return isPlaceholder(value) || value.trim().toLowerCase() === "family";
+}
+
 /**
  * A description with its bracketed markers removed, leaving the real prose.
  *

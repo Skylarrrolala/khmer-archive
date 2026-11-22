@@ -109,7 +109,7 @@ export default async function DeleteEntryPage({
       <p className="mt-8 text-sm leading-relaxed text-muted">
         The entry and its photograph are removed for good. There is no undo, and
         no copy kept anywhere else — if this is the only record of how the
-        dessert was made, it goes with it.
+        cake or snack was made, it goes with it.
       </p>
 
       <div className="mt-10 flex flex-wrap items-center gap-6">

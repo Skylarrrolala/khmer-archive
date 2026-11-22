@@ -5,7 +5,7 @@ import { EntryForm } from "@/components/EntryForm";
 import { requireUser } from "@/lib/auth";
 
 export const metadata: Metadata = {
-  title: "Submit a dessert — The Khmer Living Archive",
+  title: "Submit a cake or snack — The Khmer Living Archive",
 };
 
 export const dynamic = "force-dynamic";
@@ -33,7 +33,7 @@ export default async function SubmitPage() {
       </p>
 
       <h1 className="mt-5 text-3xl uppercase leading-[1.1] tracking-[0.01em] text-accent sm:text-4xl">
-        Add a dessert to the archive.
+        Add a cake or snack to the archive.
       </h1>
 
       <p className="mt-5 max-w-xl text-sm leading-relaxed text-muted">

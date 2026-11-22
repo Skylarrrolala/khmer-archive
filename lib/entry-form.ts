@@ -22,10 +22,10 @@
  * This is the one field a contributor cannot shrug off.
  */
 export const ENTRY_FIELDS = {
-  name_khmer: { label: "Name in Khmer", max: 120, blank: "Give the dessert's name in Khmer script." },
-  name_english: { label: "Name in English", max: 150, blank: "Give the dessert a name in English." },
-  told_by: { label: "Told by", max: 120, blank: "Credit the person who shared this dessert, by name." },
-  context: { label: "When it is made", max: 300, blank: "Say when the dessert is made — a festival, a daily snack." },
+  name_khmer: { label: "Name in Khmer", max: 120, blank: "Give its name in Khmer script." },
+  name_english: { label: "Name in English", max: 150, blank: "Give its name in English." },
+  told_by: { label: "Told by", max: 120, blank: "Credit the person who shared it, by name." },
+  context: { label: "When it is made", max: 300, blank: "Say when it is made — a festival, a daily snack." },
   description: { label: "The story", max: 8000, blank: "Add the story or description." },
 } as const;
 

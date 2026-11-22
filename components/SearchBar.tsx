@@ -1,49 +1,43 @@
 import Link from "next/link";
 
-/**
- * The search box.
- *
- * Deliberately a plain HTML <form method="get"> with no `"use client"` and no
- * React state. Submitting it navigates to `/?q=whatever`, which re-runs the
- * server component in app/(browse)/page.tsx and re-queries Postgres.
- *
- * That means: the search runs in the database, the result is a real URL a
- * visitor can bookmark or share, and it works with JavaScript disabled.
- */
+/** A GET form keeps search in the database and usable without JavaScript. */
 export function SearchBar({ query }: { query: string }) {
   return (
-    <form method="get" action="/" className="flex flex-wrap gap-2">
-      <label htmlFor="q" className="sr-only">
-        Search desserts by name or occasion
+    <form method="get" action="/#collection" className="collection-search">
+      <label htmlFor="q" className="search-label mb-2 block text-sm text-ink">
+        <span lang="km" className="font-khmer">ស្វែងរក</span>
+        <span>Search by Khmer name, English name or occasion</span>
       </label>
-      <input
-        id="q"
-        name="q"
-        type="search"
-        defaultValue={query}
-        placeholder="Search by name or occasion…"
-        /* `basis-full` below sm so the field takes a row of its own and the
-           buttons wrap beneath it — sharing one row at 320px squeezed the
-           field until its placeholder truncated mid-word. Longhands rather
-           than the `flex-1` shorthand: `flex` would set a basis of its own,
-           and which of the two won at sm would come down to the order
-           Tailwind happens to emit them in. */
-        className="min-w-0 grow basis-full border border-line bg-accent-soft px-4 py-3 text-ink transition-colors placeholder:text-muted focus:border-accent focus:outline-none sm:basis-0"
-      />
-      <button
-        type="submit"
-        className="bg-accent px-6 py-3 text-xs uppercase tracking-[0.18em] text-on-accent transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-      >
-        Search
-      </button>
-      {query ? (
-        <Link
-          href="/"
-          className="flex items-center border border-line px-6 py-3 text-xs uppercase tracking-[0.18em] text-muted transition-colors hover:border-accent hover:text-accent"
+      <div className="flex flex-wrap gap-3">
+        <div className="search-field relative min-w-0 grow basis-32 sm:basis-0">
+          <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none">
+            <circle cx="10.5" cy="10.5" r="6.5" stroke="currentColor" strokeWidth="1.5" />
+            <path d="m16 16 4.5 4.5" stroke="currentColor" strokeWidth="1.5" />
+          </svg>
+          <input
+            id="q"
+            name="q"
+            type="search"
+            defaultValue={query}
+            placeholder="ឈ្មោះ ឬឱកាស · Name or occasion…"
+            className="min-h-12 w-full min-w-0 border-b border-muted bg-transparent py-3 pr-4 pl-12 text-base text-ink placeholder:text-muted focus:border-accent focus:outline-2 focus:outline-offset-2 focus:outline-accent"
+          />
+        </div>
+        <button
+          type="submit"
+          className="min-h-12 bg-accent px-4 py-3 sm:px-7 text-sm text-on-accent transition-opacity hover:opacity-90"
         >
-          Clear
-        </Link>
-      ) : null}
+          <span lang="km" className="font-khmer">ស្វែងរក</span> Search
+        </button>
+        {query ? (
+          <Link
+            href="/#collection"
+            className="inline-flex min-h-12 items-center border border-muted px-6 py-3 text-sm text-accent hover:underline"
+          >
+            Clear search
+          </Link>
+        ) : null}
+      </div>
     </form>
   );
 }

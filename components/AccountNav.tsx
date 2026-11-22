@@ -32,7 +32,7 @@ export async function AccountNav() {
     return (
       <Link
         href="/login"
-        className="text-[0.7rem] uppercase tracking-[0.22em] text-muted transition-colors hover:text-accent"
+        className="text-sm text-muted transition-colors hover:text-accent"
       >
         Sign in
       </Link>
@@ -43,17 +43,17 @@ export async function AccountNav() {
   const reviewer = await isCurrentUserReviewer().catch(() => false);
 
   return (
-    <div className="flex flex-wrap items-baseline gap-x-5 gap-y-1">
+    <div className="flex min-w-0 max-w-full flex-wrap items-center gap-x-5 gap-y-1">
       <Link
         href="/submit"
-        className="text-[0.7rem] uppercase tracking-[0.22em] text-accent transition-opacity hover:opacity-70"
+        className="text-sm text-accent transition-opacity hover:opacity-70"
       >
         Submit
       </Link>
 
       <Link
         href="/my-entries"
-        className="text-[0.7rem] uppercase tracking-[0.22em] text-muted transition-colors hover:text-accent"
+        className="text-sm text-muted transition-colors hover:text-accent"
       >
         Your entries
       </Link>
@@ -61,7 +61,7 @@ export async function AccountNav() {
       {reviewer ? (
         <Link
           href="/review"
-          className="text-[0.7rem] uppercase tracking-[0.22em] text-muted transition-colors hover:text-accent"
+          className="text-sm text-muted transition-colors hover:text-accent"
         >
           Review entries
         </Link>
@@ -70,14 +70,14 @@ export async function AccountNav() {
       {/* The email is the only identifier a contributor has until profiles
           exist, so it is what the archive greets them with. `break-all` because
           a long address must not push the masthead wider than the page. */}
-      <span className="break-all text-[0.7rem] uppercase tracking-[0.22em] text-muted">
+      <span className="max-w-full text-xs text-muted [overflow-wrap:anywhere]">
         {user.email}
       </span>
 
       <form action={signOut}>
         <button
           type="submit"
-          className="text-[0.7rem] uppercase tracking-[0.22em] text-accent transition-opacity hover:opacity-70"
+          className="text-sm text-accent transition-opacity hover:opacity-70"
         >
           Sign out
         </button>

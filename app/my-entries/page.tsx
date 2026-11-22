@@ -60,7 +60,7 @@ export default async function MyEntriesPage({
           href="/submit"
           className="bg-accent px-6 py-3 text-xs uppercase tracking-[0.18em] text-on-accent transition-opacity hover:opacity-90"
         >
-          Add a dessert
+          Add a cake or snack
         </Link>
       </div>
 
@@ -76,7 +76,7 @@ export default async function MyEntriesPage({
 
       {entries.length === 0 ? (
         <p className="mt-6 border border-line bg-card p-8 text-muted">
-          You have not added anything yet. An entry needs the dessert&apos;s
+          You have not added anything yet. An entry needs its
           name, the person who shared it, its story, and a photograph.
         </p>
       ) : (

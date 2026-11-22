@@ -70,7 +70,7 @@ export async function saveEntry(
   if (!photo && !current.photo_url) {
     return formFailure(
       previous,
-      "Add a photograph of the dessert. Every entry needs one.",
+      "Add a photograph of the cake or snack. Every entry needs one.",
       values,
     );
   }

@@ -2,13 +2,13 @@
  * The empty state for a dessert that is remembered but no longer made.
  *
  * `photo_url` is nullable by design — the archive is as much about the
- * desserts the grandparents no longer cook as the ones they still do. So this
+ * desserts a source remembers as those they still make. So this
  * is not a "missing image" fallback to apologise for: it is a record of an
  * absence, and it gets the same visual weight as a photograph would.
  *
  * Shared by the browse card and the detail page so the two never drift apart.
  */
-export function NoPhotoPanel({ size = "sm" }: { size?: "sm" | "lg" }) {
+export function NoPhotoPanel({ size = "sm", withheld = false }: { size?: "sm" | "lg"; withheld?: boolean }) {
   const icon = size === "lg" ? 72 : 44;
 
   return (
@@ -43,9 +43,9 @@ export function NoPhotoPanel({ size = "sm" }: { size?: "sm" | "lg" }) {
       </svg>
 
       <p className="text-sm font-medium text-accent">
-        Remembered, not made today
+        {withheld ? "Photograph withheld" : "Remembered, not made today"}
       </p>
-      <p className="text-xs text-muted">No photograph was ever taken</p>
+      <p className="text-xs text-muted">{withheld ? "Reuse permission pending confirmation" : "No photograph recorded"}</p>
     </div>
   );
 }
